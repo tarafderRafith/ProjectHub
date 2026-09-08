@@ -1,6 +1,8 @@
+import { Link } from "react-router-dom";
 import "./ProjectCard.css";
 
 interface ProjectCardProps {
+  id: number;
   category: string;
   title: string;
   description: string;
@@ -14,6 +16,7 @@ interface ProjectCardProps {
 }
 
 function ProjectCard({
+  id,
   category,
   title,
   description,
@@ -45,7 +48,9 @@ function ProjectCard({
       <div className="project-card-body">
         <div className="project-card-rating">
           <span>★</span>
+
           <strong>{rating.toFixed(1)}</strong>
+
           <small>({reviews})</small>
         </div>
 
@@ -56,12 +61,18 @@ function ProjectCard({
         </p>
 
         <div className="project-card-tech">
-          {technologies.slice(0, 3).map((technology) => (
-            <span key={technology}>{technology}</span>
-          ))}
+          {technologies.slice(0, 3).map(
+            (technology) => (
+              <span key={technology}>
+                {technology}
+              </span>
+            )
+          )}
 
           {technologies.length > 3 && (
-            <span>+{technologies.length - 3}</span>
+            <span>
+              +{technologies.length - 3}
+            </span>
           )}
         </div>
 
@@ -72,22 +83,30 @@ function ProjectCard({
 
           <div className="seller-info">
             <strong>{sellerName}</strong>
+
             <span>{sellerLevel}</span>
           </div>
         </div>
 
         <div className="project-card-footer">
           <div>
-            <span className="price-label">Starting from</span>
+            <span className="price-label">
+              Starting from
+            </span>
+
             <strong className="project-price">
               ৳{price.toLocaleString()}
             </strong>
           </div>
 
-          <button className="view-project-button">
+          <Link
+            to={`/projects/${id}`}
+            className="view-project-button"
+          >
             View
+
             <span>→</span>
-          </button>
+          </Link>
         </div>
       </div>
     </article>

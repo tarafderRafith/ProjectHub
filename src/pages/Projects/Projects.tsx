@@ -218,8 +218,9 @@ function Projects() {
               <div className="projects-grid">
                 {filteredProjects.map((project) => (
                   <ProjectCard
-                    key={project.id}
-                    category={project.category}
+  key={project.id}
+  id={project.id}
+  category={project.category} 
                     title={project.title}
                     description={project.description}
                     technologies={project.technologies}
