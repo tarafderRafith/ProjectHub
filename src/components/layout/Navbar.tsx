@@ -1,26 +1,40 @@
+import { Link } from "react-router-dom";
 import "./Navbar.css";
 
 function Navbar() {
   return (
     <header className="navbar">
       <div className="navbar-container">
-        <a href="/" className="navbar-logo">
+        <Link to="/" className="navbar-logo">
           <span className="logo-mark">P</span>
-          <span className="logo-text">Project<span>Hub</span></span>
-        </a>
+
+          <span className="logo-text">
+            Project<span>Hub</span>
+          </span>
+        </Link>
 
         <nav className="navbar-links">
-          <a href="#projects">Browse Projects</a>
-          <a href="#requests">Requests</a>
-          <a href="#how-it-works">How It Works</a>
+          <Link to="/projects">Browse Projects</Link>
+
+          <Link to="/requests">Requests</Link>
+
+          <a href="/#how-it-works">How It Works</a>
         </nav>
 
         <div className="navbar-actions">
-          <button className="btn-login">Log in</button>
-          <button className="btn-primary">Get Started</button>
+          <button className="btn-login">
+            Log in
+          </button>
+
+          <button className="btn-primary">
+            Get Started
+          </button>
         </div>
 
-        <button className="mobile-menu" aria-label="Open menu">
+        <button
+          className="mobile-menu"
+          aria-label="Open menu"
+        >
           <span></span>
           <span></span>
           <span></span>

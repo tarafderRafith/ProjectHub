@@ -1,96 +1,152 @@
+import { useMemo, useState } from "react";
 import Navbar from "../../components/layout/Navbar";
 import ProjectCard from "../../components/common/ProjectCard";
 import "./Projects.css";
 
-const projects = [
+interface Project {
+  id: number;
+  category: string;
+  title: string;
+  description: string;
+  technologies: string[];
+  price: number;
+  rating: number;
+  reviews: number;
+  sellerName: string;
+  sellerInitial: string;
+  sellerLevel: string;
+}
+
+const projects: Project[] = [
   {
-    category: "WEB DEVELOPMENT",
-    title: "University Complaint Management System",
+    id: 1,
+    category: "Web Development",
+    title: "University Event Management System",
     description:
-      "A complete complaint management platform designed for university students and staff.",
+      "A complete web-based event management system for universities with registration and event tracking.",
     technologies: ["PHP", "MySQL", "JavaScript"],
-    price: 2800,
-    rating: 4.8,
+    price: 3500,
+    rating: 4.9,
     reviews: 24,
     sellerName: "Rafith",
     sellerInitial: "R",
+    sellerLevel: "Top Seller",
   },
   {
-    category: "COMPUTER GRAPHICS",
-    title: "3D City Simulation",
-    description:
-      "An interactive 3D city environment featuring buildings, roads, lighting and animations.",
-    technologies: ["C++", "OpenGL", "GLUT"],
-    price: 3500,
-    rating: 4.9,
-    reviews: 18,
-    sellerName: "Sakib",
-    sellerInitial: "S",
-  },
-  {
-    category: "DESKTOP APPLICATION",
+    id: 2,
+    category: "C#",
     title: "Internship Management System",
     description:
-      "A desktop-based internship management system with multiple user roles and dashboards.",
+      "A modern internship management platform built with C# and Windows Forms.",
     technologies: ["C#", ".NET", "SQL Server"],
-    price: 4500,
-    rating: 5.0,
-    reviews: 12,
-    sellerName: "Araf",
+    price: 5000,
+    rating: 4.8,
+    reviews: 18,
+    sellerName: "Arif",
     sellerInitial: "A",
+    sellerLevel: "Verified Seller",
   },
   {
-    category: "WEB DEVELOPMENT",
-    title: "Student Attendance Portal",
+    id: 3,
+    category: "Computer Graphics",
+    title: "OpenGL Graphics Project",
     description:
-      "A responsive attendance management portal with student and teacher interfaces.",
-    technologies: ["React", "Node.js", "MongoDB"],
-    price: 3200,
+      "Interactive computer graphics project using OpenGL and GLUT with multiple visual scenes.",
+    technologies: ["C++", "OpenGL", "GLUT"],
+    price: 2500,
     rating: 4.7,
-    reviews: 31,
+    reviews: 15,
     sellerName: "Nabil",
     sellerInitial: "N",
+    sellerLevel: "Verified Seller",
   },
   {
-    category: "ARTIFICIAL INTELLIGENCE",
-    title: "Student Performance Predictor",
+    id: 4,
+    category: "Java",
+    title: "Student Management System",
     description:
-      "A machine learning project that analyzes academic data and predicts student performance.",
-    technologies: ["Python", "Pandas", "Scikit-learn"],
-    price: 4000,
+      "A Java-based student management application with authentication and CRUD operations.",
+    technologies: ["Java", "JavaFX", "MySQL"],
+    price: 3000,
+    rating: 4.6,
+    reviews: 11,
+    sellerName: "Sami",
+    sellerInitial: "S",
+    sellerLevel: "New Seller",
+  },
+  {
+    id: 5,
+    category: "Python",
+    title: "AI Student Assistant",
+    description:
+      "A Python-based assistant that helps students organize academic tasks and information.",
+    technologies: ["Python", "AI", "API"],
+    price: 4500,
     rating: 4.9,
-    reviews: 15,
-    sellerName: "Mahir",
-    sellerInitial: "M",
+    reviews: 21,
+    sellerName: "Tanvir",
+    sellerInitial: "T",
+    sellerLevel: "Top Seller",
   },
   {
-    category: "MOBILE APPLICATION",
-    title: "Campus Event App",
+    id: 6,
+    category: "Web Development",
+    title: "Online Course Platform",
     description:
-      "A mobile application for discovering university events, registrations and announcements.",
-    technologies: ["Flutter", "Dart", "Firebase"],
-    price: 3800,
+      "A responsive online course platform with course listings, user accounts and dashboards.",
+    technologies: ["React", "Node.js", "MongoDB"],
+    price: 6000,
     rating: 4.8,
-    reviews: 21,
-    sellerName: "Tahsin",
-    sellerInitial: "T",
+    reviews: 29,
+    sellerName: "Hasan",
+    sellerInitial: "H",
+    sellerLevel: "Top Seller",
   },
 ];
 
+const categories = [
+  "All",
+  "Web Development",
+  "C#",
+  "Java",
+  "Python",
+  "Computer Graphics",
+];
+
 function Projects() {
+  const [search, setSearch] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("All");
+
+  const filteredProjects = useMemo(() => {
+    return projects.filter((project) => {
+      const matchesCategory =
+        selectedCategory === "All" ||
+        project.category === selectedCategory;
+
+      const searchText = search.toLowerCase().trim();
+
+      const matchesSearch =
+        searchText === "" ||
+        project.title.toLowerCase().includes(searchText) ||
+        project.description.toLowerCase().includes(searchText) ||
+        project.category.toLowerCase().includes(searchText) ||
+        project.technologies.some((technology) =>
+          technology.toLowerCase().includes(searchText)
+        );
+
+      return matchesCategory && matchesSearch;
+    });
+  }, [search, selectedCategory]);
+
   return (
-    <div className="projects-page">
+    <>
       <Navbar />
 
-      <main>
+      <main className="projects-page">
         <section className="projects-hero">
-          <div className="projects-hero-container">
-            <div className="projects-breadcrumb">
-              Home <span>/</span> Browse Projects
-            </div>
-
-            <span className="section-label">
-              MARKETPLACE
+          <div className="projects-container">
+            <span className="projects-eyebrow">
+              PROJECT MARKETPLACE
             </span>
 
             <h1>
@@ -100,132 +156,107 @@ function Projects() {
             </h1>
 
             <p>
-              Explore projects created by students and developers.
-              Compare technologies, ratings, prices and seller
-              profiles before making your decision.
+              Explore student projects, academic resources and
+              ready-to-customize solutions from talented developers.
             </p>
 
-            <div className="project-search">
-              <span>⌕</span>
+            <div className="projects-search">
+              <span className="search-icon">⌕</span>
 
               <input
                 type="text"
                 placeholder="Search projects, technologies, courses..."
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
               />
 
-              <button>Search</button>
+              {search && (
+                <button
+                  className="clear-search"
+                  onClick={() => setSearch("")}
+                  aria-label="Clear search"
+                >
+                  ×
+                </button>
+              )}
             </div>
           </div>
         </section>
 
         <section className="projects-content">
-          <div className="projects-content-container">
-            <aside className="project-filters">
-              <div className="filter-header">
-                <h3>Filters</h3>
-                <button>Clear all</button>
+          <div className="projects-container">
+            <div className="projects-toolbar">
+              <div>
+                <h2>Browse Projects</h2>
+                <p>
+                  {filteredProjects.length}{" "}
+                  {filteredProjects.length === 1
+                    ? "project"
+                    : "projects"}{" "}
+                  available
+                </p>
               </div>
+            </div>
 
-              <div className="filter-group">
-                <h4>Category</h4>
+            <div className="category-filter">
+              {categories.map((category) => (
+                <button
+                  key={category}
+                  className={
+                    selectedCategory === category
+                      ? "category-button active"
+                      : "category-button"
+                  }
+                  onClick={() => setSelectedCategory(category)}
+                >
+                  {category}
+                </button>
+              ))}
+            </div>
 
-                <label>
-                  <input type="checkbox" />
-                  Web Development
-                </label>
-
-                <label>
-                  <input type="checkbox" />
-                  Desktop Application
-                </label>
-
-                <label>
-                  <input type="checkbox" />
-                  Computer Graphics
-                </label>
-
-                <label>
-                  <input type="checkbox" />
-                  Artificial Intelligence
-                </label>
-
-                <label>
-                  <input type="checkbox" />
-                  Mobile Application
-                </label>
-              </div>
-
-              <div className="filter-group">
-                <h4>Price range</h4>
-
-                <div className="price-inputs">
-                  <input placeholder="Min" />
-                  <span>—</span>
-                  <input placeholder="Max" />
-                </div>
-              </div>
-
-              <div className="filter-group">
-                <h4>Rating</h4>
-
-                <label>
-                  <input type="checkbox" />
-                  ★ 4.5 & above
-                </label>
-
-                <label>
-                  <input type="checkbox" />
-                  ★ 4.0 & above
-                </label>
-
-                <label>
-                  <input type="checkbox" />
-                  ★ 3.5 & above
-                </label>
-              </div>
-            </aside>
-
-            <div className="projects-results">
-              <div className="results-header">
-                <div>
-                  <h2>Popular projects</h2>
-                  <p>
-                    Showing {projects.length} projects
-                  </p>
-                </div>
-
-                <select defaultValue="popular">
-                  <option value="popular">
-                    Most Popular
-                  </option>
-                  <option value="newest">
-                    Newest
-                  </option>
-                  <option value="price-low">
-                    Price: Low to High
-                  </option>
-                  <option value="price-high">
-                    Price: High to Low
-                  </option>
-                  <option value="rating">
-                    Highest Rated
-                  </option>
-                </select>
-              </div>
-
+            {filteredProjects.length > 0 ? (
               <div className="projects-grid">
-                {projects.map((project) => (
+                {filteredProjects.map((project) => (
                   <ProjectCard
-                    key={project.title}
-                    {...project}
+                    key={project.id}
+                    category={project.category}
+                    title={project.title}
+                    description={project.description}
+                    technologies={project.technologies}
+                    price={project.price}
+                    rating={project.rating}
+                    reviews={project.reviews}
+                    sellerName={project.sellerName}
+                    sellerInitial={project.sellerInitial}
+                    sellerLevel={project.sellerLevel}
                   />
                 ))}
               </div>
-            </div>
+            ) : (
+              <div className="projects-empty">
+                <div className="empty-icon">⌕</div>
+
+                <h3>No projects found</h3>
+
+                <p>
+                  Try searching for another project or choose
+                  a different category.
+                </p>
+
+                <button
+                  onClick={() => {
+                    setSearch("");
+                    setSelectedCategory("All");
+                  }}
+                >
+                  Clear Filters
+                </button>
+              </div>
+            )}
           </div>
         </section>
       </main>
-    </div>
+    </>
   );
 }
 
