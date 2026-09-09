@@ -5,6 +5,7 @@ function Navbar() {
   return (
     <header className="navbar">
       <div className="navbar-container">
+
         <Link to="/" className="navbar-logo">
           <span className="logo-mark">P</span>
 
@@ -14,21 +15,35 @@ function Navbar() {
         </Link>
 
         <nav className="navbar-links">
-          <Link to="/projects">Browse Projects</Link>
+          <Link to="/projects">
+            Browse Projects
+          </Link>
 
-          <Link to="/requests">Requests</Link>
+          <Link to="/requests">
+            Requests
+          </Link>
 
-          <a href="/#how-it-works">How It Works</a>
+          <a href="/#how-it-works">
+            How It Works
+          </a>
         </nav>
 
         <div className="navbar-actions">
-          <button className="btn-login">
-            Log in
-          </button>
 
-          <button className="btn-primary">
+          <Link
+            to="/login"
+            className="btn-login"
+          >
+            Log in
+          </Link>
+
+          <Link
+            to="/register"
+            className="btn-primary"
+          >
             Get Started
-          </button>
+          </Link>
+
         </div>
 
         <button
@@ -39,6 +54,7 @@ function Navbar() {
           <span></span>
           <span></span>
         </button>
+
       </div>
     </header>
   );

@@ -4,12 +4,17 @@ import Home from "./pages/Home/Home";
 import Projects from "./pages/Projects/Projects";
 import Requests from "./pages/Requests/Requests";
 import ProjectDetails from "./pages/ProjectDetails/ProjectDetails";
+import Login from "./pages/Login/Login";
+import Register from "./pages/Register/Register";
 
 function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<Home />} />
+        <Route
+          path="/"
+          element={<Home />}
+        />
 
         <Route
           path="/projects"
@@ -24,6 +29,16 @@ function App() {
         <Route
           path="/requests"
           element={<Requests />}
+        />
+
+        <Route
+          path="/login"
+          element={<Login />}
+        />
+
+        <Route
+          path="/register"
+          element={<Register />}
         />
       </Routes>
     </BrowserRouter>
