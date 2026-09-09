@@ -1,0 +1,536 @@
+.payment-page {
+  min-height: calc(100vh - 80px);
+  padding: 70px 24px 100px;
+  background:
+    radial-gradient(
+      circle at 15% 15%,
+      rgba(255, 0, 92, 0.08),
+      transparent 28%
+    ),
+    radial-gradient(
+      circle at 85% 20%,
+      rgba(0, 220, 255, 0.06),
+      transparent 30%
+    );
+}
+
+.payment-container {
+  width: min(1180px, 100%);
+  margin: 0 auto;
+}
+
+.payment-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 35px;
+  color: #9ca3af;
+  text-decoration: none;
+  font-size: 14px;
+  transition: color 0.25s ease;
+}
+
+.payment-back:hover {
+  color: #ffffff;
+}
+
+.payment-header {
+  margin-bottom: 40px;
+}
+
+.payment-step {
+  display: inline-block;
+  margin-bottom: 12px;
+  color: #ff2d75;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+}
+
+.payment-header h1 {
+  margin: 0 0 12px;
+  color: #ffffff;
+  font-size: clamp(34px, 5vw, 56px);
+  line-height: 1.05;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+}
+
+.payment-header p {
+  max-width: 650px;
+  margin: 0;
+  color: #9ca3af;
+  font-size: 16px;
+  line-height: 1.7;
+}
+
+.payment-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(300px, 0.7fr);
+  gap: 28px;
+  align-items: start;
+}
+
+.payment-main-card,
+.payment-summary-card {
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  background: rgba(15, 15, 20, 0.82);
+  backdrop-filter: blur(18px);
+  border-radius: 24px;
+}
+
+.payment-main-card {
+  padding: 34px;
+}
+
+.payment-summary-card {
+  padding: 30px;
+  position: sticky;
+  top: 110px;
+}
+
+.bkash-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding-bottom: 25px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  margin-bottom: 30px;
+}
+
+.bkash-logo {
+  font-size: 28px;
+  font-weight: 900;
+  font-style: italic;
+  letter-spacing: -0.05em;
+  color: #e2136e;
+}
+
+.bkash-header > span {
+  padding: 7px 12px;
+  border: 1px solid rgba(226, 19, 110, 0.25);
+  border-radius: 999px;
+  color: #e2136e;
+  background: rgba(226, 19, 110, 0.07);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.payment-instruction {
+  display: flex;
+  gap: 18px;
+  margin-bottom: 24px;
+}
+
+.instruction-number {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  border: 1px solid rgba(255, 45, 117, 0.3);
+  border-radius: 50%;
+  color: #ff2d75;
+  background: rgba(255, 45, 117, 0.07);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.payment-instruction h3 {
+  margin: 4px 0 7px;
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.payment-instruction p {
+  margin: 0;
+  color: #8f929b;
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.bkash-number-card {
+  margin: 0 0 28px;
+  padding: 25px;
+  border: 1px solid rgba(226, 19, 110, 0.2);
+  border-radius: 18px;
+  background:
+    linear-gradient(
+      135deg,
+      rgba(226, 19, 110, 0.12),
+      rgba(226, 19, 110, 0.025)
+    );
+}
+
+.bkash-number-card span,
+.amount-card span {
+  display: block;
+  margin-bottom: 8px;
+  color: #858894;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.bkash-number-card strong {
+  display: block;
+  color: #ffffff;
+  font-size: clamp(27px, 4vw, 38px);
+  letter-spacing: 0.04em;
+}
+
+.bkash-number-card small {
+  display: block;
+  margin-top: 10px;
+  color: #777a84;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.amount-card {
+  margin-bottom: 35px;
+  padding: 25px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.amount-card strong {
+  display: block;
+  color: #ffffff;
+  font-size: 34px;
+  font-weight: 800;
+}
+
+.transaction-field {
+  margin: 30px 0 18px;
+}
+
+.transaction-field label {
+  display: block;
+  margin-bottom: 10px;
+  color: #e5e7eb;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.transaction-field input {
+  width: 100%;
+  min-height: 54px;
+  box-sizing: border-box;
+  padding: 0 16px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 13px;
+  outline: none;
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.045);
+  font-family: inherit;
+  font-size: 15px;
+  transition:
+    border-color 0.25s ease,
+    background 0.25s ease,
+    box-shadow 0.25s ease;
+}
+
+.transaction-field input::placeholder {
+  color: #656873;
+}
+
+.transaction-field input:focus {
+  border-color: rgba(255, 45, 117, 0.7);
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: 0 0 0 4px rgba(255, 45, 117, 0.08);
+}
+
+.transaction-field input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.payment-error {
+  margin-bottom: 18px;
+  padding: 13px 15px;
+  border: 1px solid rgba(255, 70, 70, 0.25);
+  border-radius: 12px;
+  color: #ff8d8d;
+  background: rgba(255, 70, 70, 0.07);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.payment-security-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 18px;
+  padding: 14px 15px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.payment-security-note span {
+  color: #52d68a;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.payment-security-note p {
+  margin: 0;
+  color: #777b86;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.summary-label {
+  display: block;
+  margin-bottom: 18px;
+  color: #777a84;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+}
+
+.payment-summary-card h2 {
+  margin: 0 0 30px;
+  color: #ffffff;
+  font-size: 20px;
+  line-height: 1.45;
+}
+
+.summary-row,
+.summary-total {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.summary-row span,
+.summary-total span {
+  color: #888b95;
+  font-size: 13px;
+}
+
+.summary-row strong {
+  color: #ffffff;
+  font-size: 15px;
+}
+
+.summary-divider {
+  height: 1px;
+  margin: 24px 0;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.summary-total span {
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.summary-total strong {
+  color: #ff2d75;
+  font-size: 25px;
+  font-weight: 800;
+}
+
+.summary-protection {
+  display: flex;
+  gap: 12px;
+  margin-top: 30px;
+  padding: 16px;
+  border: 1px solid rgba(82, 214, 138, 0.12);
+  border-radius: 14px;
+  background: rgba(82, 214, 138, 0.04);
+}
+
+.summary-protection > span {
+  color: #52d68a;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.summary-protection strong {
+  display: block;
+  margin-bottom: 4px;
+  color: #d9dce2;
+  font-size: 12px;
+}
+
+.summary-protection p {
+  margin: 0;
+  color: #777b84;
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.payment-loading {
+  padding: 100px 20px;
+  color: #999ca6;
+  text-align: center;
+  font-size: 15px;
+}
+
+.payment-error-card,
+.payment-success-card {
+  max-width: 680px;
+  margin: 70px auto;
+  padding: 50px 35px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 24px;
+  background: rgba(15, 15, 20, 0.82);
+  text-align: center;
+}
+
+.payment-error-card > span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 50px;
+  height: 50px;
+  margin: 0 auto 20px;
+  border-radius: 50%;
+  color: #ff7777;
+  background: rgba(255, 70, 70, 0.1);
+  font-size: 24px;
+  font-weight: 800;
+}
+
+.payment-error-card h1,
+.payment-success-card h1 {
+  margin: 0 0 12px;
+  color: #ffffff;
+  font-size: 32px;
+}
+
+.payment-error-card p,
+.payment-success-card > p {
+  max-width: 500px;
+  margin: 0 auto 25px;
+  color: #898c96;
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.payment-error-card a {
+  color: #ff2d75;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.payment-success-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 70px;
+  height: 70px;
+  margin: 0 auto 25px;
+  border: 1px solid rgba(82, 214, 138, 0.25);
+  border-radius: 50%;
+  color: #52d68a;
+  background: rgba(82, 214, 138, 0.08);
+  font-size: 32px;
+  font-weight: 800;
+}
+
+.payment-success-card .payment-step {
+  color: #52d68a;
+}
+
+.payment-success-details {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  margin: 30px 0;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 15px;
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.payment-success-details div {
+  padding: 18px;
+  background: rgba(15, 15, 20, 0.9);
+}
+
+.payment-success-details span {
+  display: block;
+  margin-bottom: 7px;
+  color: #727580;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+
+.payment-success-details strong {
+  color: #ffffff;
+  font-size: 14px;
+}
+
+.payment-success-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 15px;
+}
+
+.payment-back-link {
+  color: #898c96;
+  text-decoration: none;
+  font-size: 13px;
+  transition: color 0.2s ease;
+}
+
+.payment-back-link:hover {
+  color: #ffffff;
+}
+
+@media (max-width: 850px) {
+  .payment-page {
+    padding: 50px 18px 80px;
+  }
+
+  .payment-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .payment-summary-card {
+    position: static;
+  }
+}
+
+@media (max-width: 560px) {
+  .payment-main-card,
+  .payment-summary-card {
+    padding: 22px;
+    border-radius: 18px;
+  }
+
+  .payment-header h1 {
+    font-size: 34px;
+  }
+
+  .bkash-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .payment-success-card,
+  .payment-error-card {
+    margin: 40px auto;
+    padding: 35px 20px;
+  }
+
+  .payment-success-details {
+    grid-template-columns: 1fr;
+  }
+
+  .bkash-number-card strong {
+    font-size: 26px;
+  }
+}

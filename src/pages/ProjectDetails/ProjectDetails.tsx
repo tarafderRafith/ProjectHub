@@ -1,7 +1,31 @@
-import { useParams, Link } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import Navbar from "../../components/layout/Navbar";
 import Button from "../../components/common/Button";
+import { createOrder } from "../../services/orderService";
 import "./ProjectDetails.css";
+
+interface ApiProject {
+  id: number;
+  category: string;
+  title: string;
+  description: string;
+  technologies: string;
+  course: string;
+  university: string;
+  price: number;
+  deliveryDays: number;
+  deliverables: string;
+  imageUrl: string | null;
+  isAvailable: boolean;
+  isApproved: boolean;
+  sellerId: number;
+  sellerName: string;
+  sellerUsername: string;
+  sellerEmail: string;
+  createdAt: string;
+  updatedAt: string;
+}
 
 interface Project {
   id: number;
@@ -22,215 +46,172 @@ interface Project {
   university: string;
 }
 
-const projects: Project[] = [
-  {
-    id: 1,
-    category: "Web Development",
-    title: "University Event Management System",
-    description:
-      "A complete web-based event management system designed for university students and organizations. The system allows users to browse events, register for events and manage event information through an admin dashboard.",
-    technologies: ["PHP", "MySQL", "JavaScript"],
-    price: 3500,
-    rating: 4.9,
-    reviews: 24,
-    sellerName: "Rafith",
-    sellerInitial: "R",
-    sellerLevel: "Top Seller",
-    deliveryTime: "5-7 days",
-    course: "Web Technologies",
-    university: "University Project",
-    features: [
-      "Student registration",
-      "Event creation and management",
-      "Event registration system",
-      "Admin dashboard",
-      "Responsive interface",
-      "Database integration",
-    ],
-    deliverables: [
-      "Complete source code",
-      "Database / SQL file",
-      "Project documentation",
-      "Setup guide",
-      "Screenshots",
-      "Online demonstration",
-    ],
-  },
-  {
-    id: 2,
-    category: "C#",
-    title: "Internship Management System",
-    description:
-      "A modern internship management platform built with C# and .NET. The system connects students, companies and administrators through a structured internship workflow.",
-    technologies: ["C#", ".NET", "SQL Server"],
-    price: 5000,
-    rating: 4.8,
-    reviews: 18,
-    sellerName: "Arif",
-    sellerInitial: "A",
-    sellerLevel: "Verified Seller",
-    deliveryTime: "7-10 days",
-    course: "Object Oriented Programming",
-    university: "University Project",
-    features: [
-      "Student management",
-      "Company management",
-      "Internship posting",
-      "Application management",
-      "Admin dashboard",
-      "SQL Server database",
-    ],
-    deliverables: [
-      "Complete source code",
-      "SQL database",
-      "Project documentation",
-      "UML diagrams",
-      "Setup guide",
-      "Project demonstration",
-    ],
-  },
-  {
-    id: 3,
-    category: "Computer Graphics",
-    title: "OpenGL Graphics Project",
-    description:
-      "An interactive computer graphics project developed using C++, OpenGL and GLUT. The project contains multiple visual scenes and demonstrates fundamental computer graphics concepts.",
-    technologies: ["C++", "OpenGL", "GLUT"],
-    price: 2500,
-    rating: 4.7,
-    reviews: 15,
-    sellerName: "Nabil",
-    sellerInitial: "N",
-    sellerLevel: "Verified Seller",
-    deliveryTime: "4-6 days",
-    course: "Computer Graphics",
-    university: "University Project",
-    features: [
-      "Interactive graphics",
-      "Multiple scenes",
-      "Keyboard interaction",
-      "Mouse interaction",
-      "OpenGL rendering",
-      "Animation support",
-    ],
-    deliverables: [
-      "C++ source code",
-      "OpenGL project files",
-      "Documentation",
-      "Screenshots",
-      "Setup instructions",
-      "Live demonstration",
-    ],
-  },
-  {
-    id: 4,
-    category: "Java",
-    title: "Student Management System",
-    description:
-      "A Java-based student management application with authentication, student records and CRUD operations. Designed with a simple and user-friendly interface.",
-    technologies: ["Java", "JavaFX", "MySQL"],
-    price: 3000,
-    rating: 4.6,
-    reviews: 11,
-    sellerName: "Sami",
-    sellerInitial: "S",
-    sellerLevel: "New Seller",
-    deliveryTime: "5-8 days",
-    course: "Java Programming",
-    university: "University Project",
-    features: [
-      "Student registration",
-      "Student profiles",
-      "CRUD operations",
-      "Authentication",
-      "Search functionality",
-      "Database integration",
-    ],
-    deliverables: [
-      "Java source code",
-      "Database file",
-      "Documentation",
-      "UML diagram",
-      "Setup guide",
-      "Demonstration",
-    ],
-  },
-  {
-    id: 5,
-    category: "Python",
-    title: "AI Student Assistant",
-    description:
-      "A Python-based academic assistant designed to help students organize academic information, tasks and useful resources.",
-    technologies: ["Python", "AI", "API"],
-    price: 4500,
-    rating: 4.9,
-    reviews: 21,
-    sellerName: "Tanvir",
-    sellerInitial: "T",
-    sellerLevel: "Top Seller",
-    deliveryTime: "7-10 days",
-    course: "Python Programming",
-    university: "University Project",
-    features: [
-      "AI-powered responses",
-      "Task management",
-      "API integration",
-      "Student dashboard",
-      "Simple user interface",
-      "Extensible architecture",
-    ],
-    deliverables: [
-      "Python source code",
-      "API configuration guide",
-      "Documentation",
-      "Setup instructions",
-      "Screenshots",
-      "Demonstration",
-    ],
-  },
-  {
-    id: 6,
-    category: "Web Development",
-    title: "Online Course Platform",
-    description:
-      "A modern responsive online course platform featuring course listings, user accounts, dashboards and a clean learning-focused interface.",
-    technologies: ["React", "Node.js", "MongoDB"],
-    price: 6000,
-    rating: 4.8,
-    reviews: 29,
-    sellerName: "Hasan",
-    sellerInitial: "H",
-    sellerLevel: "Top Seller",
-    deliveryTime: "10-14 days",
-    course: "Web Development",
-    university: "University Project",
-    features: [
-      "Course listing",
-      "User authentication",
-      "Student dashboard",
-      "Course management",
-      "Responsive design",
-      "Database integration",
-    ],
-    deliverables: [
-      "Complete source code",
-      "Database setup",
-      "Documentation",
-      "Setup guide",
-      "Screenshots",
-      "Project demonstration",
-    ],
-  },
-];
-
 function ProjectDetails() {
   const { id } = useParams();
+  const navigate = useNavigate();
 
-  const project = projects.find(
-    (item) => item.id === Number(id)
-  );
+  const [project, setProject] = useState<Project | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  if (!project) {
+  const [purchasing, setPurchasing] = useState(false);
+  const [purchaseError, setPurchaseError] = useState("");
+  const [purchaseSuccess, setPurchaseSuccess] = useState<{
+    orderId: number;
+  } | null>(null);
+
+  useEffect(() => {
+    const fetchProject = async () => {
+      try {
+        setLoading(true);
+        setError("");
+
+        const response = await fetch(
+          `http://localhost:5038/api/Projects/${id}`
+        );
+
+        const result: ApiProject | { message?: string } =
+          await response.json();
+
+        if (!response.ok) {
+          throw new Error(
+            "message" in result && result.message
+              ? result.message
+              : "Unable to load project."
+          );
+        }
+
+        const apiProject = result as ApiProject;
+
+        const technologies = apiProject.technologies
+          .split(",")
+          .map((technology) => technology.trim())
+          .filter(
+            (technology) => technology.length > 0
+          );
+
+        const deliverables = apiProject.deliverables
+          .split(",")
+          .map((deliverable) => deliverable.trim())
+          .filter(
+            (deliverable) => deliverable.length > 0
+          );
+
+        const sellerName =
+          apiProject.sellerName || "ProjectHub Seller";
+
+        const formattedProject: Project = {
+          id: apiProject.id,
+          category: apiProject.category,
+          title: apiProject.title,
+          description: apiProject.description,
+          technologies,
+          price: apiProject.price,
+          rating: 0,
+          reviews: 0,
+          sellerName,
+          sellerInitial: sellerName
+            .charAt(0)
+            .toUpperCase(),
+          sellerLevel: "Verified Seller",
+          deliveryTime: `${apiProject.deliveryDays} ${
+            apiProject.deliveryDays === 1
+              ? "day"
+              : "days"
+          }`,
+          features: [
+            "Complete project functionality",
+            "Source code",
+            "Database integration",
+            "Project documentation",
+            "Setup support",
+          ],
+          deliverables,
+          course: apiProject.course,
+          university: apiProject.university,
+        };
+
+        setProject(formattedProject);
+      } catch (err) {
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Unable to load project."
+        );
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (id) {
+      fetchProject();
+    }
+  }, [id]);
+
+  const handlePurchase = async () => {
+    if (!project) {
+      return;
+    }
+
+    const token =
+      localStorage.getItem("projecthub_token") ||
+      sessionStorage.getItem("projecthub_token");
+
+    if (!token) {
+      setPurchaseError(
+        "Please log in as a Buyer before purchasing a project."
+      );
+
+      return;
+    }
+
+    try {
+      setPurchasing(true);
+      setPurchaseError("");
+      setPurchaseSuccess(null);
+
+      const result = await createOrder({
+        projectId: project.id,
+        buyerMessage:
+          "I would like to purchase this project.",
+      });
+
+      setPurchaseSuccess({
+        orderId: result.orderId,
+      });
+    } catch (err) {
+      setPurchaseError(
+        err instanceof Error
+          ? err.message
+          : "Unable to create the order."
+      );
+    } finally {
+      setPurchasing(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <>
+        <Navbar />
+
+        <main className="project-not-found">
+          <div>
+            <span className="not-found-icon">◌</span>
+
+            <h1>Loading project...</h1>
+
+            <p>
+              Please wait while we load the project
+              details.
+            </p>
+          </div>
+        </main>
+      </>
+    );
+  }
+
+  if (error || !project) {
     return (
       <>
         <Navbar />
@@ -242,8 +223,8 @@ function ProjectDetails() {
             <h1>Project not found</h1>
 
             <p>
-              The project you're looking for doesn't exist or
-              may have been removed.
+              {error ||
+                "The project you're looking for doesn't exist or may have been removed."}
             </p>
 
             <Link to="/projects">
@@ -281,11 +262,15 @@ function ProjectDetails() {
                   <span className="rating-star">★</span>
 
                   <strong>
-                    {project.rating.toFixed(1)}
+                    {project.rating > 0
+                      ? project.rating.toFixed(1)
+                      : "New"}
                   </strong>
 
                   <span>
-                    ({project.reviews} reviews)
+                    {project.reviews > 0
+                      ? `(${project.reviews} reviews)`
+                      : "(No reviews yet)"}
                   </span>
                 </div>
 
@@ -346,13 +331,100 @@ function ProjectDetails() {
                     agreement before payment.
                   </p>
 
-                  <Button size="large" fullWidth>
-                    Purchase Project
-                  </Button>
+                  {!purchaseSuccess && (
+                    <Button
+                      size="large"
+                      fullWidth
+                      onClick={handlePurchase}
+                      disabled={purchasing}
+                    >
+                      {purchasing
+                        ? "Creating Order..."
+                        : "Purchase Project"}
+                    </Button>
+                  )}
 
-                  <button className="contact-seller-button">
-                    Contact Seller
-                  </button>
+                  {purchaseError && (
+                    <div
+                      style={{
+                        marginTop: "14px",
+                        padding: "12px",
+                        borderRadius: "10px",
+                        border:
+                          "1px solid rgba(239, 68, 68, 0.35)",
+                        background:
+                          "rgba(239, 68, 68, 0.08)",
+                        color: "#ef4444",
+                        fontSize: "14px",
+                        lineHeight: "1.5",
+                      }}
+                    >
+                      {purchaseError}
+                    </div>
+                  )}
+
+                  {purchaseSuccess && (
+                    <div
+                      style={{
+                        marginTop: "14px",
+                        padding: "16px",
+                        borderRadius: "12px",
+                        border:
+                          "1px solid rgba(34, 197, 94, 0.35)",
+                        background:
+                          "rgba(34, 197, 94, 0.08)",
+                        color: "#22c55e",
+                        fontSize: "14px",
+                        lineHeight: "1.6",
+                      }}
+                    >
+                      <strong>
+                        Order created successfully!
+                      </strong>
+
+                      <br />
+
+                      Order ID: #{purchaseSuccess.orderId}
+
+                      <br />
+
+                      Amount: ৳
+                      {project.price.toLocaleString()}
+
+                      <br />
+
+                      Status: Payment Pending
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          navigate(
+                            `/payment/${purchaseSuccess.orderId}`
+                          )
+                        }
+                        style={{
+                          width: "100%",
+                          marginTop: "14px",
+                          padding: "12px 16px",
+                          border: "none",
+                          borderRadius: "9px",
+                          background: "#e2136e",
+                          color: "#ffffff",
+                          fontSize: "14px",
+                          fontWeight: 700,
+                          cursor: "pointer",
+                        }}
+                      >
+                        Pay with bKash →
+                      </button>
+                    </div>
+                  )}
+
+                  {!purchaseSuccess && (
+                    <button className="contact-seller-button">
+                      Contact Seller
+                    </button>
+                  )}
 
                   <div className="secure-note">
                     <span>✓</span>
@@ -371,8 +443,8 @@ function ProjectDetails() {
                 <h2>What's included</h2>
 
                 <p className="section-intro">
-                  This project includes the following features
-                  and functionality.
+                  This project includes the following
+                  features and functionality.
                 </p>
 
                 <div className="feature-list">
@@ -448,7 +520,9 @@ function ProjectDetails() {
                   <div className="seller-stats">
                     <div>
                       <strong>
-                        {project.rating.toFixed(1)}
+                        {project.rating > 0
+                          ? project.rating.toFixed(1)
+                          : "New"}
                       </strong>
 
                       <span>Rating</span>
@@ -489,7 +563,9 @@ function ProjectDetails() {
 
                 <div className="overall-rating">
                   <strong>
-                    {project.rating.toFixed(1)}
+                    {project.rating > 0
+                      ? project.rating.toFixed(1)
+                      : "New"}
                   </strong>
 
                   <span>★★★★★</span>

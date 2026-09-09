@@ -1,5 +1,6 @@
 
 const API_URL = "http://localhost:5038/api/Auth";
+const USERS_API_URL = "http://localhost:5038/api/Users";
 
 export interface RegisterData {
   fullName: string;
@@ -24,6 +25,33 @@ export interface LoginData {
   password: string;
 }
 
+export interface CurrentUser {
+  id: number;
+  fullName: string;
+  username: string;
+  email: string;
+  contactNumber: string;
+
+  role: string;
+
+  university: string;
+  department: string;
+  studentId: string | null;
+  semester: string;
+  graduationYear: number;
+
+  bio: string | null;
+  skills: string | null;
+  github: string | null;
+  portfolio: string | null;
+
+  isVerified: boolean;
+  isActive: boolean;
+
+  createdAt: string;
+  updatedAt: string;
+}
+
 export const registerUser = async (
   data: RegisterData
 ) => {
@@ -44,7 +72,8 @@ export const registerUser = async (
 
   if (!response.ok) {
     throw new Error(
-      result.message || "Registration failed."
+      result.message ||
+        "Registration failed."
     );
   }
 
@@ -71,10 +100,50 @@ export const loginUser = async (
 
   if (!response.ok) {
     throw new Error(
-      result.message || "Login failed."
+      result.message ||
+        "Login failed."
     );
   }
 
   return result;
 };
+
+export const getCurrentUser =
+  async (): Promise<CurrentUser> => {
+    const token =
+      localStorage.getItem(
+        "projecthub_token"
+      ) ||
+      sessionStorage.getItem(
+        "projecthub_token"
+      );
+
+    if (!token) {
+      throw new Error(
+        "You are not logged in."
+      );
+    }
+
+    const response = await fetch(
+      `${USERS_API_URL}/me`,
+      {
+        method: "GET",
+
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        result.message ||
+          "Unable to load your profile."
+      );
+    }
+
+    return result;
+  };
 

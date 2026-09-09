@@ -1,7 +1,28 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Navbar from "../../components/layout/Navbar";
 import ProjectCard from "../../components/common/ProjectCard";
 import "./Projects.css";
+
+interface ApiProject {
+  id: number;
+  category: string;
+  title: string;
+  description: string;
+  technologies: string;
+  price: number;
+  deliveryDays: number;
+  course: string;
+  university: string;
+  deliverables: string;
+  imageUrl: string | null;
+  isAvailable: boolean;
+  isApproved: boolean;
+  sellerId: number;
+  sellerName: string;
+  sellerUsername: string;
+  createdAt: string;
+  updatedAt: string;
+}
 
 interface Project {
   id: number;
@@ -17,93 +38,6 @@ interface Project {
   sellerLevel: string;
 }
 
-const projects: Project[] = [
-  {
-    id: 1,
-    category: "Web Development",
-    title: "University Event Management System",
-    description:
-      "A complete web-based event management system for universities with registration and event tracking.",
-    technologies: ["PHP", "MySQL", "JavaScript"],
-    price: 3500,
-    rating: 4.9,
-    reviews: 24,
-    sellerName: "Rafith",
-    sellerInitial: "R",
-    sellerLevel: "Top Seller",
-  },
-  {
-    id: 2,
-    category: "C#",
-    title: "Internship Management System",
-    description:
-      "A modern internship management platform built with C# and Windows Forms.",
-    technologies: ["C#", ".NET", "SQL Server"],
-    price: 5000,
-    rating: 4.8,
-    reviews: 18,
-    sellerName: "Arif",
-    sellerInitial: "A",
-    sellerLevel: "Verified Seller",
-  },
-  {
-    id: 3,
-    category: "Computer Graphics",
-    title: "OpenGL Graphics Project",
-    description:
-      "Interactive computer graphics project using OpenGL and GLUT with multiple visual scenes.",
-    technologies: ["C++", "OpenGL", "GLUT"],
-    price: 2500,
-    rating: 4.7,
-    reviews: 15,
-    sellerName: "Nabil",
-    sellerInitial: "N",
-    sellerLevel: "Verified Seller",
-  },
-  {
-    id: 4,
-    category: "Java",
-    title: "Student Management System",
-    description:
-      "A Java-based student management application with authentication and CRUD operations.",
-    technologies: ["Java", "JavaFX", "MySQL"],
-    price: 3000,
-    rating: 4.6,
-    reviews: 11,
-    sellerName: "Sami",
-    sellerInitial: "S",
-    sellerLevel: "New Seller",
-  },
-  {
-    id: 5,
-    category: "Python",
-    title: "AI Student Assistant",
-    description:
-      "A Python-based assistant that helps students organize academic tasks and information.",
-    technologies: ["Python", "AI", "API"],
-    price: 4500,
-    rating: 4.9,
-    reviews: 21,
-    sellerName: "Tanvir",
-    sellerInitial: "T",
-    sellerLevel: "Top Seller",
-  },
-  {
-    id: 6,
-    category: "Web Development",
-    title: "Online Course Platform",
-    description:
-      "A responsive online course platform with course listings, user accounts and dashboards.",
-    technologies: ["React", "Node.js", "MongoDB"],
-    price: 6000,
-    rating: 4.8,
-    reviews: 29,
-    sellerName: "Hasan",
-    sellerInitial: "H",
-    sellerLevel: "Top Seller",
-  },
-];
-
 const categories = [
   "All",
   "Web Development",
@@ -114,8 +48,76 @@ const categories = [
 ];
 
 function Projects() {
+  const [projects, setProjects] = useState<Project[]>([]);
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const fetchProjects = async () => {
+      try {
+        setLoading(true);
+        setError("");
+
+        const response = await fetch(
+          "http://localhost:5038/api/Projects"
+        );
+
+        const result: ApiProject[] | { message?: string } =
+          await response.json();
+
+        if (!response.ok) {
+          throw new Error(
+            "message" in result && result.message
+              ? result.message
+              : "Unable to load projects."
+          );
+        }
+
+        const apiProjects = result as ApiProject[];
+
+        const formattedProjects: Project[] =
+          apiProjects.map((project) => {
+            const technologies = project.technologies
+              .split(",")
+              .map((technology) => technology.trim())
+              .filter((technology) => technology.length > 0);
+
+            const sellerName =
+              project.sellerName || "ProjectHub Seller";
+
+            return {
+              id: project.id,
+              category: project.category,
+              title: project.title,
+              description: project.description,
+              technologies,
+              price: project.price,
+              rating: 0,
+              reviews: 0,
+              sellerName,
+              sellerInitial: sellerName
+                .charAt(0)
+                .toUpperCase(),
+              sellerLevel: "Verified Seller",
+            };
+          });
+
+        setProjects(formattedProjects);
+      } catch (err) {
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Unable to load projects."
+        );
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProjects();
+  }, []);
 
   const filteredProjects = useMemo(() => {
     return projects.filter((project) => {
@@ -127,16 +129,24 @@ function Projects() {
 
       const matchesSearch =
         searchText === "" ||
-        project.title.toLowerCase().includes(searchText) ||
-        project.description.toLowerCase().includes(searchText) ||
-        project.category.toLowerCase().includes(searchText) ||
+        project.title
+          .toLowerCase()
+          .includes(searchText) ||
+        project.description
+          .toLowerCase()
+          .includes(searchText) ||
+        project.category
+          .toLowerCase()
+          .includes(searchText) ||
         project.technologies.some((technology) =>
-          technology.toLowerCase().includes(searchText)
+          technology
+            .toLowerCase()
+            .includes(searchText)
         );
 
       return matchesCategory && matchesSearch;
     });
-  }, [search, selectedCategory]);
+  }, [projects, search, selectedCategory]);
 
   return (
     <>
@@ -157,7 +167,8 @@ function Projects() {
 
             <p>
               Explore student projects, academic resources and
-              ready-to-customize solutions from talented developers.
+              ready-to-customize solutions from talented
+              developers.
             </p>
 
             <div className="projects-search">
@@ -167,7 +178,9 @@ function Projects() {
                 type="text"
                 placeholder="Search projects, technologies, courses..."
                 value={search}
-                onChange={(event) => setSearch(event.target.value)}
+                onChange={(event) =>
+                  setSearch(event.target.value)
+                }
               />
 
               {search && (
@@ -188,12 +201,15 @@ function Projects() {
             <div className="projects-toolbar">
               <div>
                 <h2>Browse Projects</h2>
+
                 <p>
-                  {filteredProjects.length}{" "}
-                  {filteredProjects.length === 1
-                    ? "project"
-                    : "projects"}{" "}
-                  available
+                  {loading
+                    ? "Loading projects..."
+                    : `${filteredProjects.length} ${
+                        filteredProjects.length === 1
+                          ? "project"
+                          : "projects"
+                      } available`}
                 </p>
               </div>
             </div>
@@ -207,20 +223,49 @@ function Projects() {
                       ? "category-button active"
                       : "category-button"
                   }
-                  onClick={() => setSelectedCategory(category)}
+                  onClick={() =>
+                    setSelectedCategory(category)
+                  }
                 >
                   {category}
                 </button>
               ))}
             </div>
 
-            {filteredProjects.length > 0 ? (
+            {loading ? (
+              <div className="projects-empty">
+                <div className="empty-icon">◌</div>
+
+                <h3>Loading projects...</h3>
+
+                <p>
+                  Please wait while we load the latest
+                  approved projects.
+                </p>
+              </div>
+            ) : error ? (
+              <div className="projects-empty">
+                <div className="empty-icon">!</div>
+
+                <h3>Unable to load projects</h3>
+
+                <p>{error}</p>
+
+                <button
+                  onClick={() =>
+                    window.location.reload()
+                  }
+                >
+                  Try Again
+                </button>
+              </div>
+            ) : filteredProjects.length > 0 ? (
               <div className="projects-grid">
                 {filteredProjects.map((project) => (
                   <ProjectCard
-  key={project.id}
-  id={project.id}
-  category={project.category} 
+                    key={project.id}
+                    id={project.id}
+                    category={project.category}
                     title={project.title}
                     description={project.description}
                     technologies={project.technologies}

@@ -1,4 +1,3 @@
-
 import {
   BrowserRouter,
   Routes,
@@ -12,11 +11,13 @@ import ProjectDetails from "./pages/ProjectDetails/ProjectDetails";
 import Login from "./pages/Login/Login";
 import Register from "./pages/Register/Register";
 import Dashboard from "./pages/Dashboard/Dashboard";
+import Profile from "./pages/Profile/Profile";
+import SellerProjectEdit from "./pages/SellerProjectEdit/SellerProjectEdit";
+import Payment from "./pages/Payment/Payment";
 
 function App() {
   return (
     <BrowserRouter>
-
       <Routes>
 
         <Route
@@ -54,11 +55,24 @@ function App() {
           element={<Dashboard />}
         />
 
-      </Routes>
+        <Route
+          path="/profile"
+          element={<Profile />}
+        />
 
+        <Route
+          path="/seller/projects/:id/edit"
+          element={<SellerProjectEdit />}
+        />
+
+        <Route
+          path="/payment/:orderId"
+          element={<Payment />}
+        />
+
+      </Routes>
     </BrowserRouter>
   );
 }
 
 export default App;
-
