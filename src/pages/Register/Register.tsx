@@ -1,6 +1,13 @@
+
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import "./Register.css";
+
+
+import {
+  registerUser,
+  type RegisterData,
+} from "../../services/authService";
 
 type AccountType = "buyer" | "seller";
 
@@ -34,6 +41,7 @@ function Register() {
 
   const [agreeTerms, setAgreeTerms] = useState(false);
   const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
   const nextStep = () => {
     setError("");
@@ -88,6 +96,13 @@ function Register() {
       }
     }
 
+    if (step === 3) {
+      if (!skills.trim()) {
+        setError("Please enter at least one skill or interest.");
+        return;
+      }
+    }
+
     setStep(step + 1);
   };
 
@@ -96,7 +111,7 @@ function Register() {
     setStep(step - 1);
   };
 
-  const handleSubmit = (
+  const handleSubmit = async (
     event: React.FormEvent<HTMLFormElement>
   ) => {
     event.preventDefault();
@@ -110,30 +125,66 @@ function Register() {
       return;
     }
 
-    /*
-      Temporary frontend registration.
+    setIsLoading(true);
 
-      Later this will be replaced with:
+    try {
+      const registerData: RegisterData = {
+        fullName: name.trim(),
 
-      POST /api/auth/register
+        username: username.trim(),
 
-      and connected to:
+        email: email.trim(),
 
-      React
-        ↓
-      ASP.NET Core API
-        ↓
-      SQL Server
-        ↓
-      JWT Authentication
-    */
+        contactNumber: contact.trim(),
 
-    navigate("/login");
+        password: password,
+
+        role:
+          accountType === "buyer"
+            ? "Buyer"
+            : "Seller",
+
+        university: university.trim(),
+
+        department: department.trim(),
+
+        studentId: studentId.trim(),
+
+        semester: semester,
+
+        graduationYear: Number(graduationYear),
+
+        bio: bio.trim(),
+
+        skills: skills.trim(),
+
+        github: github.trim(),
+
+        portfolio: portfolio.trim(),
+      };
+
+      const result = await registerUser(registerData);
+
+      console.log("Registration successful:", result);
+
+      navigate("/login");
+    } catch (error) {
+      if (error instanceof Error) {
+        setError(error.message);
+      } else {
+        setError(
+          "Something went wrong while creating your account."
+        );
+      }
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
     <main className="register-page">
       <div className="register-background-glow register-glow-one"></div>
+
       <div className="register-background-glow register-glow-two"></div>
 
       <div className="register-wrapper">
@@ -151,6 +202,7 @@ function Register() {
         <div className="register-card">
 
           <div className="register-header">
+
             <span className="register-eyebrow">
               CREATE YOUR ACCOUNT
             </span>
@@ -165,6 +217,7 @@ function Register() {
               Create your profile and start discovering,
               buying, or selling student projects.
             </p>
+
           </div>
 
           {/* Progress */}
@@ -172,12 +225,14 @@ function Register() {
           <div className="register-progress">
 
             <div className="progress-line">
+
               <div
                 className="progress-line-active"
                 style={{
                   width: `${((step - 1) / 3) * 100}%`,
                 }}
               ></div>
+
             </div>
 
             {[1, 2, 3, 4].map((number) => (
@@ -189,6 +244,7 @@ function Register() {
                     : ""
                 }`}
               >
+
                 <span>{number}</span>
 
                 <small>
@@ -197,6 +253,7 @@ function Register() {
                   {number === 3 && "Profile"}
                   {number === 4 && "Finish"}
                 </small>
+
               </div>
             ))}
 
@@ -213,18 +270,23 @@ function Register() {
               <div className="register-step-content">
 
                 <div className="step-heading">
+
                   <span>01</span>
+
                   <div>
                     <h2>Account information</h2>
+
                     <p>
                       Create your ProjectHub login details.
                     </p>
                   </div>
+
                 </div>
 
                 <div className="register-grid">
 
                   <div className="form-group">
+
                     <label htmlFor="name">
                       Full name
                       <span>*</span>
@@ -239,9 +301,11 @@ function Register() {
                         setName(event.target.value)
                       }
                     />
+
                   </div>
 
                   <div className="form-group">
+
                     <label htmlFor="username">
                       Username
                       <span>*</span>
@@ -256,11 +320,13 @@ function Register() {
                         setUsername(event.target.value)
                       }
                     />
+
                   </div>
 
                 </div>
 
                 <div className="form-group">
+
                   <label htmlFor="email">
                     Email address
                     <span>*</span>
@@ -275,15 +341,18 @@ function Register() {
                       setEmail(event.target.value)
                     }
                   />
+
                 </div>
 
                 <div className="form-group">
+
                   <label htmlFor="contact">
                     Contact number
                     <span>*</span>
                   </label>
 
                   <div className="contact-input">
+
                     <span>🇧🇩 +880</span>
 
                     <input
@@ -296,6 +365,7 @@ function Register() {
                           : contact
                       }
                       onChange={(event) => {
+
                         const value =
                           event.target.value.replace(
                             /\D/g,
@@ -307,18 +377,22 @@ function Register() {
                             ? `0${value.slice(0, 10)}`
                             : ""
                         );
+
                       }}
                     />
+
                   </div>
 
                   <small className="input-hint">
                     Example: 01712345678
                   </small>
+
                 </div>
 
                 <div className="register-grid">
 
                   <div className="form-group">
+
                     <label htmlFor="password">
                       Password
                       <span>*</span>
@@ -333,9 +407,11 @@ function Register() {
                         setPassword(event.target.value)
                       }
                     />
+
                   </div>
 
                   <div className="form-group">
+
                     <label htmlFor="confirmPassword">
                       Confirm password
                       <span>*</span>
@@ -352,6 +428,7 @@ function Register() {
                         )
                       }
                     />
+
                   </div>
 
                 </div>
@@ -365,17 +442,24 @@ function Register() {
               <div className="register-step-content">
 
                 <div className="step-heading">
+
                   <span>02</span>
+
                   <div>
+
                     <h2>Student information</h2>
+
                     <p>
                       Tell us a little about your academic
                       background.
                     </p>
+
                   </div>
+
                 </div>
 
                 <div className="form-group">
+
                   <label htmlFor="university">
                     University
                     <span>*</span>
@@ -390,11 +474,13 @@ function Register() {
                       setUniversity(event.target.value)
                     }
                   />
+
                 </div>
 
                 <div className="register-grid">
 
                   <div className="form-group">
+
                     <label htmlFor="department">
                       Department
                       <span>*</span>
@@ -409,9 +495,11 @@ function Register() {
                         setDepartment(event.target.value)
                       }
                     />
+
                   </div>
 
                   <div className="form-group">
+
                     <label htmlFor="studentId">
                       Student ID
                       <small>Optional</small>
@@ -426,6 +514,7 @@ function Register() {
                         setStudentId(event.target.value)
                       }
                     />
+
                   </div>
 
                 </div>
@@ -433,6 +522,7 @@ function Register() {
                 <div className="register-grid">
 
                   <div className="form-group">
+
                     <label htmlFor="semester">
                       Current semester
                       <span>*</span>
@@ -445,46 +535,61 @@ function Register() {
                         setSemester(event.target.value)
                       }
                     >
+
                       <option value="">
                         Select semester
                       </option>
+
                       <option value="1">
                         1st Semester
                       </option>
+
                       <option value="2">
                         2nd Semester
                       </option>
+
                       <option value="3">
                         3rd Semester
                       </option>
+
                       <option value="4">
                         4th Semester
                       </option>
+
                       <option value="5">
                         5th Semester
                       </option>
+
                       <option value="6">
                         6th Semester
                       </option>
+
                       <option value="7">
                         7th Semester
                       </option>
+
                       <option value="8">
                         8th Semester
                       </option>
+
                       <option value="9">
                         9th Semester
                       </option>
+
                       <option value="10">
                         10th Semester
                       </option>
+
                       <option value="11+">
                         11+ Semester
                       </option>
+
                     </select>
+
                   </div>
 
                   <div className="form-group">
+
                     <label htmlFor="graduationYear">
                       Expected graduation
                       <span>*</span>
@@ -499,6 +604,7 @@ function Register() {
                         )
                       }
                     >
+
                       <option value="">
                         Select year
                       </option>
@@ -526,12 +632,15 @@ function Register() {
                       <option value="2031">
                         2031
                       </option>
+
                     </select>
+
                   </div>
 
                 </div>
 
                 <div className="student-note">
+
                   <span>🎓</span>
 
                   <p>
@@ -539,6 +648,7 @@ function Register() {
                     ProjectHub recommend relevant projects,
                     courses and student communities.
                   </p>
+
                 </div>
 
               </div>
@@ -550,16 +660,20 @@ function Register() {
               <div className="register-step-content">
 
                 <div className="step-heading">
+
                   <span>03</span>
 
                   <div>
+
                     <h2>Your ProjectHub role</h2>
 
                     <p>
                       Choose how you mainly want to use
                       ProjectHub.
                     </p>
+
                   </div>
+
                 </div>
 
                 <div className="account-type-grid">
@@ -575,24 +689,30 @@ function Register() {
                       setAccountType("buyer")
                     }
                   >
+
                     <div className="account-type-icon">
                       🛒
                     </div>
 
                     <div>
+
                       <strong>I'm a Buyer</strong>
 
                       <p>
                         Browse projects, post requests
                         and hire student developers.
                       </p>
+
                     </div>
 
                     <span className="account-radio">
+
                       {accountType === "buyer"
                         ? "✓"
                         : ""}
+
                     </span>
+
                   </button>
 
                   <button
@@ -606,35 +726,44 @@ function Register() {
                       setAccountType("seller")
                     }
                   >
+
                     <div className="account-type-icon">
                       💻
                     </div>
 
                     <div>
+
                       <strong>I'm a Seller</strong>
 
                       <p>
                         Sell your projects, respond to
                         requests and earn.
                       </p>
+
                     </div>
 
                     <span className="account-radio">
+
                       {accountType === "seller"
                         ? "✓"
                         : ""}
+
                     </span>
+
                   </button>
 
                 </div>
 
                 <div className="form-group">
+
                   <label htmlFor="skills">
+
                     {accountType === "seller"
                       ? "Skills & technologies"
                       : "Technologies you're interested in"}
 
                     <span>*</span>
+
                   </label>
 
                   <input
@@ -654,12 +783,17 @@ function Register() {
                   <small className="input-hint">
                     Separate multiple skills with commas.
                   </small>
+
                 </div>
 
                 <div className="form-group">
+
                   <label htmlFor="bio">
+
                     Short bio
+
                     <small>Optional</small>
+
                   </label>
 
                   <textarea
@@ -675,6 +809,7 @@ function Register() {
                     }
                     rows={4}
                   />
+
                 </div>
 
               </div>
@@ -686,22 +821,30 @@ function Register() {
               <div className="register-step-content">
 
                 <div className="step-heading">
+
                   <span>04</span>
 
                   <div>
+
                     <h2>Complete your profile</h2>
 
                     <p>
                       Add a few optional details to make
                       your profile stronger.
                     </p>
+
                   </div>
+
                 </div>
 
                 <div className="form-group">
+
                   <label htmlFor="github">
+
                     GitHub profile
+
                     <small>Optional</small>
+
                   </label>
 
                   <input
@@ -713,12 +856,17 @@ function Register() {
                       setGithub(event.target.value)
                     }
                   />
+
                 </div>
 
                 <div className="form-group">
+
                   <label htmlFor="portfolio">
+
                     Portfolio website
+
                     <small>Optional</small>
+
                   </label>
 
                   <input
@@ -730,25 +878,31 @@ function Register() {
                       setPortfolio(event.target.value)
                     }
                   />
+
                 </div>
 
                 <div className="profile-summary">
 
                   <div className="summary-avatar">
+
                     {name
                       ? name.charAt(0).toUpperCase()
                       : "P"}
+
                   </div>
 
                   <div className="summary-content">
 
-                    <h3>{name || "Your Name"}</h3>
+                    <h3>
+                      {name || "Your Name"}
+                    </h3>
 
                     <span>
                       @{username || "username"}
                     </span>
 
                     <div className="summary-tags">
+
                       <span>
                         {accountType === "buyer"
                           ? "Buyer"
@@ -760,6 +914,7 @@ function Register() {
                           {department}
                         </span>
                       )}
+
                     </div>
 
                   </div>
@@ -779,19 +934,27 @@ function Register() {
                   />
 
                   <span className="custom-checkbox">
+
                     {agreeTerms ? "✓" : ""}
+
                   </span>
 
                   <span>
+
                     I agree to the{" "}
+
                     <a href="#terms">
                       Terms of Service
                     </a>{" "}
+
                     and{" "}
+
                     <a href="#privacy">
                       Privacy Policy
                     </a>
+
                     .
+
                   </span>
 
                 </label>
@@ -801,9 +964,11 @@ function Register() {
 
             {error && (
               <div className="register-error">
+
                 <span>!</span>
 
                 <p>{error}</p>
+
               </div>
             )}
 
@@ -814,6 +979,7 @@ function Register() {
                   type="button"
                   className="register-back-button"
                   onClick={previousStep}
+                  disabled={isLoading}
                 >
                   ← Back
                 </button>
@@ -831,6 +997,7 @@ function Register() {
                   type="button"
                   className="register-next-button"
                   onClick={nextStep}
+                  disabled={isLoading}
                 >
                   Continue
                   <span>→</span>
@@ -839,9 +1006,17 @@ function Register() {
                 <button
                   type="submit"
                   className="register-next-button"
+                  disabled={isLoading}
                 >
-                  Create Account
-                  <span>→</span>
+
+                  {isLoading
+                    ? "Creating Account..."
+                    : "Create Account"}
+
+                  <span>
+                    {isLoading ? "..." : "→"}
+                  </span>
+
                 </button>
               )}
 
@@ -850,6 +1025,7 @@ function Register() {
           </form>
 
           <div className="register-login-prompt">
+
             <span>
               Already have a ProjectHub account?
             </span>
@@ -857,17 +1033,27 @@ function Register() {
             <Link to="/login">
               Sign in
             </Link>
+
           </div>
 
         </div>
 
         <div className="register-footer">
+
           <span>© 2026 ProjectHub</span>
 
           <div>
-            <a href="#privacy">Privacy</a>
-            <a href="#terms">Terms</a>
+
+            <a href="#privacy">
+              Privacy
+            </a>
+
+            <a href="#terms">
+              Terms
+            </a>
+
           </div>
+
         </div>
 
       </div>
@@ -876,3 +1062,4 @@ function Register() {
 }
 
 export default Register;
+

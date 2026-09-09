@@ -1,4 +1,9 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+} from "react-router-dom";
 
 import Home from "./pages/Home/Home";
 import Projects from "./pages/Projects/Projects";
@@ -6,11 +11,14 @@ import Requests from "./pages/Requests/Requests";
 import ProjectDetails from "./pages/ProjectDetails/ProjectDetails";
 import Login from "./pages/Login/Login";
 import Register from "./pages/Register/Register";
+import Dashboard from "./pages/Dashboard/Dashboard";
 
 function App() {
   return (
     <BrowserRouter>
+
       <Routes>
+
         <Route
           path="/"
           element={<Home />}
@@ -40,9 +48,17 @@ function App() {
           path="/register"
           element={<Register />}
         />
+
+        <Route
+          path="/dashboard"
+          element={<Dashboard />}
+        />
+
       </Routes>
+
     </BrowserRouter>
   );
 }
 
 export default App;
+
