@@ -115,14 +115,13 @@ const USERS_PER_PAGE = 10;
 function AdminDashboard() {
   const navigate = useNavigate();
 
-  const [pendingPayments, setPendingPayments] =
-    useState<PendingPayment[]>([]);
+  const [pendingPayments, setPendingPayments] = useState<
+    PendingPayment[]
+  >([]);
 
-  const [projects, setProjects] =
-    useState<AdminProject[]>([]);
+  const [projects, setProjects] = useState<AdminProject[]>([]);
 
-  const [users, setUsers] =
-    useState<AdminUser[]>([]);
+  const [users, setUsers] = useState<AdminUser[]>([]);
 
   const [financialSummary, setFinancialSummary] =
     useState<FinancialSummary | null>(null);
@@ -133,25 +132,23 @@ function AdminDashboard() {
   const [sellerFinancialSummary, setSellerFinancialSummary] =
     useState<SellerFinancialSummary[]>([]);
 
-  const [loading, setLoading] =
-    useState(true);
+  const [loading, setLoading] = useState(true);
 
-  const [error, setError] =
-    useState("");
+  const [error, setError] = useState("");
 
-  const [userSearch, setUserSearch] =
-    useState("");
+  const [userSearch, setUserSearch] = useState("");
 
-  const [userFilter, setUserFilter] =
-    useState("all");
+  const [userFilter, setUserFilter] = useState("all");
 
-  const [currentUserPage, setCurrentUserPage] =
-    useState(1);
+  const [currentUserPage, setCurrentUserPage] = useState(1);
 
   const [expandedUserId, setExpandedUserId] =
     useState<number | null>(null);
 
   const [processingPaymentId, setProcessingPaymentId] =
+    useState<number | null>(null);
+
+  const [processingPayoutId, setProcessingPayoutId] =
     useState<number | null>(null);
 
   const getToken = () => {
@@ -203,47 +200,29 @@ function AdminDashboard() {
         payoutsResponse,
         sellersFinancialResponse,
       ] = await Promise.all([
-        fetch(
-          `${API_URL}/admin/payments/pending`,
-          {
-            headers,
-          }
-        ),
+        fetch(`${API_URL}/admin/payments/pending`, {
+          headers,
+        }),
 
-        fetch(
-          `${API_URL}/admin/projects`,
-          {
-            headers,
-          }
-        ),
+        fetch(`${API_URL}/admin/projects`, {
+          headers,
+        }),
 
-        fetch(
-          `${API_URL}/admin/users`,
-          {
-            headers,
-          }
-        ),
+        fetch(`${API_URL}/admin/users`, {
+          headers,
+        }),
 
-        fetch(
-          `${API_URL}/admin/financials/summary`,
-          {
-            headers,
-          }
-        ),
+        fetch(`${API_URL}/admin/financials/summary`, {
+          headers,
+        }),
 
-        fetch(
-          `${API_URL}/admin/financials/payouts`,
-          {
-            headers,
-          }
-        ),
+        fetch(`${API_URL}/admin/financials/payouts`, {
+          headers,
+        }),
 
-        fetch(
-          `${API_URL}/admin/financials/sellers`,
-          {
-            headers,
-          }
-        ),
+        fetch(`${API_URL}/admin/financials/sellers`, {
+          headers,
+        }),
       ]);
 
       const responses = [
@@ -257,17 +236,11 @@ function AdminDashboard() {
 
       if (
         responses.some(
-          (response) =>
-            response.status === 401
+          (response) => response.status === 401
         )
       ) {
-        sessionStorage.removeItem(
-          "projecthub_token"
-        );
-
-        localStorage.removeItem(
-          "projecthub_token"
-        );
+        sessionStorage.removeItem("projecthub_token");
+        localStorage.removeItem("projecthub_token");
 
         navigate("/login");
         return;
@@ -275,8 +248,7 @@ function AdminDashboard() {
 
       if (
         responses.some(
-          (response) =>
-            response.status === 403
+          (response) => response.status === 403
         )
       ) {
         setError(
@@ -285,14 +257,6 @@ function AdminDashboard() {
         return;
       }
 
-      /*
-       * IMPORTANT:
-       * Keep these in exactly the same order as the
-       * Promise.all() responses above.
-       *
-       * The previous version accidentally swapped
-       * payoutsData and sellersFinancialData.
-       */
       const [
         paymentsData,
         projectsData,
@@ -383,11 +347,6 @@ function AdminDashboard() {
         financialData as FinancialSummary
       );
 
-      /*
-       * Correct response mapping:
-       * payoutsData -> seller payouts
-       * sellersFinancialData -> seller summaries
-       */
       setSellerPayouts(
         Array.isArray(payoutsData)
           ? payoutsData
@@ -395,9 +354,7 @@ function AdminDashboard() {
       );
 
       setSellerFinancialSummary(
-        Array.isArray(
-          sellersFinancialData
-        )
+        Array.isArray(sellersFinancialData)
           ? sellersFinancialData
           : []
       );
@@ -421,143 +378,100 @@ function AdminDashboard() {
     loadDashboard();
   }, []);
 
-  const totalProjects =
-    projects.length;
+  const totalProjects = projects.length;
 
-  const pendingProjects =
-    projects.filter(
-      (project) =>
-        project.isApproved === false
-    );
+  const pendingProjects = projects.filter(
+    (project) => project.isApproved === false
+  );
 
-  const approvedProjects =
-    projects.filter(
-      (project) =>
-        project.isApproved === true
-    );
+  const approvedProjects = projects.filter(
+    (project) => project.isApproved === true
+  );
 
-  const unavailableProjects =
-    projects.filter(
-      (project) =>
-        project.isAvailable === false
-    );
+  const unavailableProjects = projects.filter(
+    (project) => project.isAvailable === false
+  );
 
-  const verifiedUsers =
-    users.filter(
-      (user) =>
-        user.isVerified
-    );
+  const verifiedUsers = users.filter(
+    (user) => user.isVerified
+  );
 
-  const unverifiedUsers =
-    users.filter(
-      (user) =>
-        !user.isVerified &&
-        (user.role || "").toLowerCase() !==
-          "admin"
-    );
+  const unverifiedUsers = users.filter(
+    (user) =>
+      !user.isVerified &&
+      String(user.role || "").toLowerCase() !==
+        "admin"
+  );
 
-  const activeUsers =
-    users.filter(
-      (user) =>
-        user.isActive
-    );
+  const activeUsers = users.filter(
+    (user) => user.isActive
+  );
 
-  const buyers =
-    users.filter(
-      (user) =>
-        (user.role || "").toLowerCase() ===
-        "buyer"
-    );
+  const buyers = users.filter(
+    (user) =>
+      String(user.role || "").toLowerCase() ===
+      "buyer"
+  );
 
-  const sellers =
-    users.filter(
-      (user) =>
-        (user.role || "").toLowerCase() ===
-        "seller"
-    );
+  const sellers = users.filter(
+    (user) =>
+      String(user.role || "").toLowerCase() ===
+      "seller"
+  );
 
   const filteredUsers = useMemo(() => {
-    const search =
-      userSearch
-        .trim()
-        .toLowerCase();
+    const search = userSearch
+      .trim()
+      .toLowerCase();
 
-    return users.filter(
-      (user) => {
-        const role =
-          (user.role || "").toLowerCase();
+    return users.filter((user) => {
+      const role = String(
+        user.role || ""
+      ).toLowerCase();
 
-        const fullName =
-          user.fullName || "";
+      const fullName = user.fullName || "";
+      const username = user.username || "";
+      const email = user.email || "";
+      const studentId = user.studentId || "";
 
-        const username =
-          user.username || "";
+      const matchesSearch =
+        !search ||
+        fullName.toLowerCase().includes(search) ||
+        username.toLowerCase().includes(search) ||
+        email.toLowerCase().includes(search) ||
+        studentId.toLowerCase().includes(search);
 
-        const email =
-          user.email || "";
+      const matchesFilter =
+        userFilter === "all" ||
+        (userFilter === "verified" &&
+          user.isVerified) ||
+        (userFilter === "unverified" &&
+          !user.isVerified &&
+          role !== "admin") ||
+        (userFilter === "active" &&
+          user.isActive) ||
+        (userFilter === "inactive" &&
+          !user.isActive) ||
+        (userFilter === "buyer" &&
+          role === "buyer") ||
+        (userFilter === "seller" &&
+          role === "seller");
 
-        const studentId =
-          user.studentId || "";
+      return matchesSearch && matchesFilter;
+    });
+  }, [users, userSearch, userFilter]);
 
-        const matchesSearch =
-          !search ||
-          fullName
-            .toLowerCase()
-            .includes(search) ||
-          username
-            .toLowerCase()
-            .includes(search) ||
-          email
-            .toLowerCase()
-            .includes(search) ||
-          studentId
-            .toLowerCase()
-            .includes(search);
+  const totalUserPages = Math.max(
+    1,
+    Math.ceil(
+      filteredUsers.length / USERS_PER_PAGE
+    )
+  );
 
-        const matchesFilter =
-          userFilter === "all" ||
-          (userFilter === "verified" &&
-            user.isVerified) ||
-          (userFilter === "unverified" &&
-            !user.isVerified &&
-            role !== "admin") ||
-          (userFilter === "active" &&
-            user.isActive) ||
-          (userFilter === "inactive" &&
-            !user.isActive) ||
-          (userFilter === "buyer" &&
-            role === "buyer") ||
-          (userFilter === "seller" &&
-            role === "seller");
-
-        return (
-          matchesSearch &&
-          matchesFilter
-        );
-      }
-    );
-  }, [
-    users,
-    userSearch,
-    userFilter,
-  ]);
-
-  const totalUserPages =
-    Math.max(
-      1,
-      Math.ceil(
-        filteredUsers.length /
-          USERS_PER_PAGE
-      )
-    );
-
-  const paginatedUsers =
-    filteredUsers.slice(
-      (currentUserPage - 1) *
-        USERS_PER_PAGE,
-      currentUserPage *
-        USERS_PER_PAGE
-    );
+  const paginatedUsers = filteredUsers.slice(
+    (currentUserPage - 1) * USERS_PER_PAGE,
+    currentUserPage * USERS_PER_PAGE
+  );
 
   const userStart =
     filteredUsers.length === 0
@@ -566,18 +480,13 @@ function AdminDashboard() {
           USERS_PER_PAGE +
         1;
 
-  const userEnd =
-    Math.min(
-      currentUserPage *
-        USERS_PER_PAGE,
-      filteredUsers.length
-    );
+  const userEnd = Math.min(
+    currentUserPage * USERS_PER_PAGE,
+    filteredUsers.length
+  );
 
   const getPageNumbers = () => {
-    const pages: (
-      | number
-      | string
-    )[] = [];
+    const pages: (number | string)[] = [];
 
     if (totalUserPages <= 7) {
       for (
@@ -607,11 +516,7 @@ function AdminDashboard() {
       currentUserPage + 1
     );
 
-    for (
-      let i = start;
-      i <= end;
-      i++
-    ) {
+    for (let i = start; i <= end; i++) {
       pages.push(i);
     }
 
@@ -632,18 +537,10 @@ function AdminDashboard() {
   }, [userSearch, userFilter]);
 
   useEffect(() => {
-    if (
-      currentUserPage >
-      totalUserPages
-    ) {
-      setCurrentUserPage(
-        totalUserPages
-      );
+    if (currentUserPage > totalUserPages) {
+      setCurrentUserPage(totalUserPages);
     }
-  }, [
-    currentUserPage,
-    totalUserPages,
-  ]);
+  }, [currentUserPage, totalUserPages]);
 
   const handlePaymentAction = async (
     paymentId: number,
@@ -658,8 +555,7 @@ function AdminDashboard() {
       }
 
       const payment = pendingPayments.find(
-        (item) =>
-          item.id === paymentId
+        (item) => item.id === paymentId
       );
 
       if (!payment) {
@@ -674,19 +570,20 @@ function AdminDashboard() {
           ? "verify this payment"
           : "reject this payment";
 
-      const confirmed =
-        window.confirm(
-          `Are you sure you want to ${actionText}?\n\nProject: ${payment.projectTitle}\nAmount: ৳${payment.amount.toLocaleString()}\nTransaction ID: ${payment.transactionId || "Not provided"}`
-        );
+      const confirmed = window.confirm(
+        `Are you sure you want to ${actionText}?\n\nProject: ${payment.projectTitle}\nAmount: ${formatMoney(
+          payment.amount
+        )}\nTransaction ID: ${
+          payment.transactionId ||
+          "Not provided"
+        }`
+      );
 
       if (!confirmed) {
         return;
       }
 
-      setProcessingPaymentId(
-        paymentId
-      );
-
+      setProcessingPaymentId(paymentId);
       setError("");
 
       const response = await fetch(
@@ -702,9 +599,7 @@ function AdminDashboard() {
       const result =
         await readResponse(response);
 
-      if (
-        response.status === 401
-      ) {
+      if (response.status === 401) {
         sessionStorage.removeItem(
           "projecthub_token"
         );
@@ -717,9 +612,7 @@ function AdminDashboard() {
         return;
       }
 
-      if (
-        response.status === 403
-      ) {
+      if (response.status === 403) {
         throw new Error(
           "You do not have permission to manage payments."
         );
@@ -745,9 +638,142 @@ function AdminDashboard() {
           : "Unable to update payment."
       );
     } finally {
-      setProcessingPaymentId(
-        null
+      setProcessingPaymentId(null);
+    }
+  };
+
+  const handleReleasePayout = async (
+    payoutId: number
+  ) => {
+    try {
+      const token = getToken();
+
+      if (!token) {
+        navigate("/login");
+        return;
+      }
+
+      const payout = sellerPayouts.find(
+        (item) => item.id === payoutId
       );
+
+      if (!payout) {
+        setError(
+          "Seller payout could not be found."
+        );
+        return;
+      }
+
+      const payoutStatus = String(
+        payout.payoutStatus || "Waiting"
+      )
+        .trim()
+        .toLowerCase();
+
+      if (payoutStatus !== "ready") {
+        if (payoutStatus === "waiting") {
+          setError(
+            "This payout is still waiting for the buyer to complete the order."
+          );
+        } else if (
+          payoutStatus === "released"
+        ) {
+          setError(
+            "This seller payout has already been released."
+          );
+        } else {
+          setError(
+            "This payout is not ready for release."
+          );
+        }
+
+        return;
+      }
+
+      const payoutAmount = Number(
+        payout.payoutAmount ||
+          payout.sellerAmount ||
+          0
+      );
+
+      const sellerName =
+        payout.sellerName ||
+        "Unknown Seller";
+
+      const confirmed = window.confirm(
+        `Release ${formatMoney(
+          payoutAmount
+        )} to ${sellerName}?\n\nOrder: #${
+          payout.orderId
+        }\nProject: ${
+          payout.projectTitle ||
+          "Untitled Project"
+        }\nSeller: ${sellerName}\nSeller payout: ${formatMoney(
+          payoutAmount
+        )}\n\nThis will mark the payout as Released.`
+      );
+
+      if (!confirmed) {
+        return;
+      }
+
+      setProcessingPayoutId(payoutId);
+      setError("");
+
+      const response = await fetch(
+        `${API_URL}/admin/financials/payouts/${payoutId}/release`,
+        {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: "application/json",
+          },
+        }
+      );
+
+      const result =
+        await readResponse(response);
+
+      if (response.status === 401) {
+        sessionStorage.removeItem(
+          "projecthub_token"
+        );
+
+        localStorage.removeItem(
+          "projecthub_token"
+        );
+
+        navigate("/login");
+        return;
+      }
+
+      if (response.status === 403) {
+        throw new Error(
+          "You do not have permission to release seller payouts."
+        );
+      }
+
+      if (!response.ok) {
+        throw new Error(
+          result?.message ||
+            "Unable to release seller payout."
+        );
+      }
+
+      await loadDashboard();
+    } catch (err) {
+      console.error(
+        "Seller payout release error:",
+        err
+      );
+
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Unable to release seller payout."
+      );
+    } finally {
+      setProcessingPayoutId(null);
     }
   };
 
@@ -767,24 +793,19 @@ function AdminDashboard() {
       }
 
       const user = users.find(
-        (item) =>
-          item.id === userId
+        (item) => item.id === userId
       );
 
       if (!user) {
         return;
       }
 
-      if (
-        action ===
-        "toggle-status"
-      ) {
-        const confirmed =
-          window.confirm(
-            user.isActive
-              ? `Are you sure you want to deactivate ${user.fullName}?`
-              : `Activate ${user.fullName}'s account?`
-          );
+      if (action === "toggle-status") {
+        const confirmed = window.confirm(
+          user.isActive
+            ? `Are you sure you want to deactivate ${user.fullName}?`
+            : `Activate ${user.fullName}'s account?`
+        );
 
         if (!confirmed) {
           return;
@@ -804,9 +825,7 @@ function AdminDashboard() {
       const result =
         await readResponse(response);
 
-      if (
-        response.status === 401
-      ) {
+      if (response.status === 401) {
         sessionStorage.removeItem(
           "projecthub_token"
         );
@@ -819,9 +838,7 @@ function AdminDashboard() {
         return;
       }
 
-      if (
-        response.status === 403
-      ) {
+      if (response.status === 403) {
         throw new Error(
           "You do not have permission to manage users."
         );
@@ -868,8 +885,7 @@ function AdminDashboard() {
       return "—";
     }
 
-    const parsedDate =
-      new Date(date);
+    const parsedDate = new Date(date);
 
     if (
       Number.isNaN(
@@ -898,10 +914,7 @@ function AdminDashboard() {
     return name
       .trim()
       .split(/\s+/)
-      .map(
-        (part) =>
-          part.charAt(0)
-      )
+      .map((part) => part.charAt(0))
       .slice(0, 2)
       .join("")
       .toUpperCase();
@@ -912,13 +925,10 @@ function AdminDashboard() {
   ) => {
     return `৳${Number(
       amount || 0
-    ).toLocaleString(
-      "en-BD",
-      {
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 2,
-      }
-    )}`;
+    ).toLocaleString("en-BD", {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2,
+    })}`;
   };
 
   const financialStyles = `
@@ -1287,7 +1297,7 @@ function AdminDashboard() {
 
     .ph-payout-row {
       display: grid;
-      grid-template-columns: .65fr 2.2fr 1fr 1fr 1fr .85fr;
+      grid-template-columns: .65fr 2.2fr 1fr 1fr 1fr 1.35fr;
       align-items: center;
       gap: 18px;
       padding: 17px 20px;
@@ -1344,6 +1354,13 @@ function AdminDashboard() {
       font-size: 15px;
     }
 
+    .ph-status-area {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 8px;
+    }
+
     .ph-status {
       display: inline-flex;
       align-items: center;
@@ -1373,6 +1390,44 @@ function AdminDashboard() {
       color: #71e3a5;
       background: rgba(70,220,140,.09);
       border: 1px solid rgba(70,220,140,.15);
+    }
+
+    .ph-release-button {
+      border: 1px solid rgba(111,220,255,.28);
+      background: rgba(70,190,255,.10);
+      color: #73dcff;
+      border-radius: 9px;
+      padding: 8px 12px;
+      font-size: 10px;
+      font-weight: 800;
+      cursor: pointer;
+      transition:
+        background .2s ease,
+        border-color .2s ease,
+        transform .2s ease;
+    }
+
+    .ph-release-button:hover:not(:disabled) {
+      background: rgba(70,190,255,.17);
+      border-color: rgba(111,220,255,.45);
+      transform: translateY(-1px);
+    }
+
+    .ph-release-button:disabled {
+      cursor: not-allowed;
+      opacity: .55;
+    }
+
+    .ph-release-button.released {
+      border-color: rgba(70,220,140,.15);
+      background: rgba(70,220,140,.06);
+      color: #71e3a5;
+    }
+
+    .ph-release-button.waiting {
+      border-color: rgba(255,190,70,.12);
+      background: rgba(255,190,70,.05);
+      color: rgba(255,199,106,.65);
     }
 
     .ph-empty {
@@ -1441,7 +1496,7 @@ function AdminDashboard() {
       }
 
       .ph-payout-row {
-        min-width: 950px;
+        min-width: 1080px;
       }
     }
 
@@ -1481,58 +1536,41 @@ function AdminDashboard() {
   if (loading) {
     return (
       <div className="admin-page">
-
         <aside className="admin-sidebar">
-
           <div className="admin-brand">
-            <span>
-              PROJECT
-            </span>
+            <span>PROJECT</span>
             HUB
           </div>
 
           <div className="admin-sidebar-loading">
             Loading...
           </div>
-
         </aside>
 
         <main className="admin-main">
-
           <div className="admin-loading-screen">
-
             <div className="admin-loader"></div>
 
             <p>
-              Loading admin
-              control center...
+              Loading admin control center...
             </p>
-
           </div>
-
         </main>
-
       </div>
     );
   }
 
   return (
     <div className="admin-page">
-
-      <style>
-        {financialStyles}
-      </style>
+      <style>{financialStyles}</style>
 
       {/* =========================
           SIDEBAR
       ========================== */}
 
       <aside className="admin-sidebar">
-
         <div className="admin-brand">
-          <span>
-            PROJECT
-          </span>
+          <span>PROJECT</span>
           HUB
         </div>
 
@@ -1541,7 +1579,6 @@ function AdminDashboard() {
         </div>
 
         <nav className="admin-nav">
-
           <a
             href="#admin-overview"
             className="admin-nav-item active"
@@ -1550,9 +1587,7 @@ function AdminDashboard() {
               ◈
             </span>
 
-            <span>
-              Overview
-            </span>
+            <span>Overview</span>
           </a>
 
           <a
@@ -1563,19 +1598,17 @@ function AdminDashboard() {
               ৳
             </span>
 
-            <span>
-              Finance
-            </span>
+            <span>Finance</span>
 
             {financialSummary &&
               financialSummary.readyToReleaseCount >
                 0 && (
-              <span className="admin-nav-count">
-                {
-                  financialSummary.readyToReleaseCount
-                }
-              </span>
-            )}
+                <span className="admin-nav-count">
+                  {
+                    financialSummary.readyToReleaseCount
+                  }
+                </span>
+              )}
           </a>
 
           <a
@@ -1586,12 +1619,9 @@ function AdminDashboard() {
               $
             </span>
 
-            <span>
-              Payments
-            </span>
+            <span>Payments</span>
 
-            {pendingPayments.length >
-              0 && (
+            {pendingPayments.length > 0 && (
               <span className="admin-nav-count">
                 {pendingPayments.length}
               </span>
@@ -1606,12 +1636,9 @@ function AdminDashboard() {
               □
             </span>
 
-            <span>
-              Projects
-            </span>
+            <span>Projects</span>
 
-            {pendingProjects.length >
-              0 && (
+            {pendingProjects.length > 0 && (
               <span className="admin-nav-count">
                 {pendingProjects.length}
               </span>
@@ -1626,9 +1653,7 @@ function AdminDashboard() {
               ≡
             </span>
 
-            <span>
-              Orders
-            </span>
+            <span>Orders</span>
 
             <span className="admin-nav-soon">
               SOON
@@ -1643,9 +1668,7 @@ function AdminDashboard() {
               ◎
             </span>
 
-            <span>
-              Users
-            </span>
+            <span>Users</span>
           </a>
 
           <a
@@ -1656,19 +1679,15 @@ function AdminDashboard() {
               !
             </span>
 
-            <span>
-              Disputes
-            </span>
+            <span>Disputes</span>
 
             <span className="admin-nav-soon">
               SOON
             </span>
           </a>
-
         </nav>
 
         <div className="admin-sidebar-bottom">
-
           <Link
             to="/"
             className="admin-back-link"
@@ -1693,9 +1712,7 @@ function AdminDashboard() {
           >
             Sign Out
           </button>
-
         </div>
-
       </aside>
 
       {/* =========================
@@ -1703,29 +1720,22 @@ function AdminDashboard() {
       ========================== */}
 
       <main className="admin-main">
-
         <header className="admin-header">
-
           <div>
-
             <span className="admin-eyebrow">
               PROJECTHUB / ADMIN
             </span>
 
-            <h1>
-              Control Center
-            </h1>
+            <h1>Control Center</h1>
 
             <p>
               Manage marketplace activity,
               members, projects, payments
               and platform finances.
             </p>
-
           </div>
 
           <div className="admin-header-actions">
-
             <button
               type="button"
               className="admin-refresh-button"
@@ -1739,31 +1749,21 @@ function AdminDashboard() {
               <span></span>
               System Online
             </div>
-
           </div>
-
         </header>
 
         {error && (
           <div className="admin-error">
+            <strong>Error</strong>
 
-            <strong>
-              Error
-            </strong>
-
-            <span>
-              {error}
-            </span>
+            <span>{error}</span>
 
             <button
               type="button"
-              onClick={() =>
-                setError("")
-              }
+              onClick={() => setError("")}
             >
               ×
             </button>
-
           </div>
         )}
 
@@ -1775,11 +1775,8 @@ function AdminDashboard() {
           className="admin-section"
           id="admin-overview"
         >
-
           <div className="admin-section-heading">
-
             <div>
-
               <span className="admin-section-label">
                 SYSTEM OVERVIEW
               </span>
@@ -1787,67 +1784,45 @@ function AdminDashboard() {
               <h2>
                 Marketplace Snapshot
               </h2>
-
             </div>
 
             <span className="admin-live-label">
               LIVE DATA
             </span>
-
           </div>
 
           <div className="admin-stats-grid">
-
             <div className="admin-stat-card">
-
               <div className="admin-stat-top">
-                <span>
-                  USERS
-                </span>
+                <span>USERS</span>
 
                 <span className="admin-stat-icon">
                   ◎
                 </span>
               </div>
 
-              <strong>
-                {users.length}
-              </strong>
+              <strong>{users.length}</strong>
 
-              <p>
-                Registered members
-              </p>
-
+              <p>Registered members</p>
             </div>
 
             <div className="admin-stat-card">
-
               <div className="admin-stat-top">
-                <span>
-                  PROJECTS
-                </span>
+                <span>PROJECTS</span>
 
                 <span className="admin-stat-icon">
                   □
                 </span>
               </div>
 
-              <strong>
-                {totalProjects}
-              </strong>
+              <strong>{totalProjects}</strong>
 
-              <p>
-                Marketplace listings
-              </p>
-
+              <p>Marketplace listings</p>
             </div>
 
             <div className="admin-stat-card warning">
-
               <div className="admin-stat-top">
-                <span>
-                  PAYMENTS
-                </span>
+                <span>PAYMENTS</span>
 
                 <span className="admin-stat-icon">
                   $
@@ -1861,15 +1836,11 @@ function AdminDashboard() {
               <p>
                 Waiting for verification
               </p>
-
             </div>
 
             <div className="admin-stat-card danger">
-
               <div className="admin-stat-top">
-                <span>
-                  PROJECT REVIEW
-                </span>
+                <span>PROJECT REVIEW</span>
 
                 <span className="admin-stat-icon">
                   !
@@ -1883,48 +1854,37 @@ function AdminDashboard() {
               <p>
                 Projects awaiting approval
               </p>
-
             </div>
-
           </div>
-
         </section>
 
         {/* =====================================================
-            NEW FINANCIAL CONTROL
+            FINANCIAL CONTROL
         ====================================================== */}
 
         <section
           className="admin-section"
           id="admin-finance"
         >
-
           <div className="ph-finance">
-
             <div className="ph-finance-header">
-
               <div className="ph-finance-title">
-
                 <span className="admin-section-label">
                   FINANCIAL CONTROL
                 </span>
 
-                <h2>
-                  Money Flow
-                </h2>
+                <h2>Finance Center</h2>
 
                 <p>
                   A clear view of ProjectHub money:
-                  received from buyers, protected for
-                  active orders, owed to sellers and
-                  earned by the platform.
+                  received from buyers, protected
+                  for active orders, owed to sellers
+                  and earned by the platform.
                 </p>
-
               </div>
 
               {financialSummary && (
                 <div className="ph-commission">
-
                   <span>
                     PLATFORM COMMISSION
                   </span>
@@ -1932,124 +1892,98 @@ function AdminDashboard() {
                   <strong>
                     {financialSummary.commissionRate}%
                   </strong>
-
                 </div>
               )}
-
             </div>
 
             <div className="ph-money-grid">
-
               <div className="ph-money-card received">
-
                 <div className="ph-money-label">
-
-                  <span>
-                    TOTAL RECEIVED
-                  </span>
+                  <span>TOTAL RECEIVED</span>
 
                   <div className="ph-money-icon">
                     ↓
                   </div>
-
                 </div>
 
                 <strong className="ph-money-value">
                   {formatMoney(
-                    financialSummary?.totalReceived || 0
+                    financialSummary?.totalReceived ||
+                      0
                   )}
                 </strong>
 
                 <p className="ph-money-description">
                   Verified buyer payments
                 </p>
-
               </div>
 
               <div className="ph-money-card held">
-
                 <div className="ph-money-label">
-
-                  <span>
-                    MONEY HELD
-                  </span>
+                  <span>MONEY HELD</span>
 
                   <div className="ph-money-icon">
                     ◉
                   </div>
-
                 </div>
 
                 <strong className="ph-money-value">
                   {formatMoney(
-                    financialSummary?.totalMoneyHeld || 0
+                    financialSummary?.totalMoneyHeld ||
+                      0
                   )}
                 </strong>
 
                 <p className="ph-money-description">
                   Protected funds for active orders
                 </p>
-
               </div>
 
               <div className="ph-money-card owed">
-
                 <div className="ph-money-label">
-
-                  <span>
-                    SELLER LIABILITY
-                  </span>
+                  <span>SELLER LIABILITY</span>
 
                   <div className="ph-money-icon">
                     →
                   </div>
-
                 </div>
 
                 <strong className="ph-money-value">
                   {formatMoney(
-                    financialSummary?.totalSellerAmount || 0
+                    financialSummary?.totalSellerAmount ||
+                      0
                   )}
                 </strong>
 
                 <p className="ph-money-description">
                   Total amount owed to sellers
                 </p>
-
               </div>
 
               <div className="ph-money-card earnings">
-
                 <div className="ph-money-label">
-
-                  <span>
-                    PLATFORM EARNINGS
-                  </span>
+                  <span>PLATFORM EARNINGS</span>
 
                   <div className="ph-money-icon">
                     +
                   </div>
-
                 </div>
 
                 <strong className="ph-money-value">
                   {formatMoney(
-                    financialSummary?.platformEarnings || 0
+                    financialSummary?.platformEarnings ||
+                      0
                   )}
                 </strong>
 
                 <p className="ph-money-description">
                   Commission from released orders
                 </p>
-
               </div>
-
             </div>
 
             <div className="ph-finance-strip">
-
               <div className="ph-strip-item">
-
                 <span>
                   PENDING VERIFICATION
                 </span>
@@ -2064,11 +1998,9 @@ function AdminDashboard() {
                 <small>
                   Awaiting admin verification
                 </small>
-
               </div>
 
               <div className="ph-strip-item">
-
                 <span>
                   WAITING FOR SELLER
                 </span>
@@ -2083,11 +2015,9 @@ function AdminDashboard() {
                 <small>
                   Seller work in progress
                 </small>
-
               </div>
 
               <div className="ph-strip-item">
-
                 <span>
                   READY TO RELEASE
                 </span>
@@ -2103,14 +2033,10 @@ function AdminDashboard() {
                   {financialSummary?.readyToReleaseCount ||
                     0} payout(s) ready
                 </small>
-
               </div>
 
               <div className="ph-strip-item">
-
-                <span>
-                  ALREADY RELEASED
-                </span>
+                <span>ALREADY RELEASED</span>
 
                 <strong>
                   {formatMoney(
@@ -2123,15 +2049,11 @@ function AdminDashboard() {
                   {financialSummary?.releasedPayoutCount ||
                     0} payout(s) completed
                 </small>
-
               </div>
-
             </div>
 
             <div className="ph-finance-flow">
-
               <div className="ph-flow-heading">
-
                 <span>
                   TRANSACTION LIFECYCLE
                 </span>
@@ -2139,13 +2061,10 @@ function AdminDashboard() {
                 <strong>
                   Buyer → ProjectHub → Seller
                 </strong>
-
               </div>
 
               <div className="ph-flow-track">
-
                 <div className="ph-flow-step">
-
                   <span className="ph-flow-number">
                     01
                   </span>
@@ -2155,10 +2074,9 @@ function AdminDashboard() {
                   </strong>
 
                   <p>
-                    Buyer submits the full project
-                    amount to ProjectHub.
+                    Buyer submits the full
+                    project amount to ProjectHub.
                   </p>
-
                 </div>
 
                 <div className="ph-flow-arrow">
@@ -2166,7 +2084,6 @@ function AdminDashboard() {
                 </div>
 
                 <div className="ph-flow-step">
-
                   <span className="ph-flow-number">
                     02
                   </span>
@@ -2176,10 +2093,10 @@ function AdminDashboard() {
                   </strong>
 
                   <p>
-                    Admin verifies the payment and
-                    ProjectHub protects the funds.
+                    Admin verifies the payment
+                    and ProjectHub protects
+                    the funds.
                   </p>
-
                 </div>
 
                 <div className="ph-flow-arrow">
@@ -2187,7 +2104,6 @@ function AdminDashboard() {
                 </div>
 
                 <div className="ph-flow-step">
-
                   <span className="ph-flow-number">
                     03
                   </span>
@@ -2197,10 +2113,9 @@ function AdminDashboard() {
                   </strong>
 
                   <p>
-                    Seller completes the work and
-                    buyer confirms delivery.
+                    Seller completes the work
+                    and buyer confirms delivery.
                   </p>
-
                 </div>
 
                 <div className="ph-flow-arrow">
@@ -2208,7 +2123,6 @@ function AdminDashboard() {
                 </div>
 
                 <div className="ph-flow-step">
-
                   <span className="ph-flow-number">
                     04
                   </span>
@@ -2218,18 +2132,14 @@ function AdminDashboard() {
                   </strong>
 
                   <p>
-                    Seller receives their amount and
-                    ProjectHub keeps the commission.
+                    Admin releases the seller
+                    amount while ProjectHub
+                    keeps its commission.
                   </p>
-
                 </div>
-
               </div>
-
             </div>
-
           </div>
-
         </section>
 
         {/* =====================================================
@@ -2237,35 +2147,25 @@ function AdminDashboard() {
         ====================================================== */}
 
         <section className="admin-section">
-
           <div className="admin-section-heading">
-
             <div>
-
               <span className="admin-section-label">
                 SELLER LIABILITY
               </span>
 
-              <h2>
-                Seller Payments
-              </h2>
+              <h2>Seller Payments</h2>
 
               <p>
                 See exactly how much ProjectHub
                 currently owes each seller.
               </p>
-
             </div>
-
           </div>
 
           {sellerFinancialSummary.length ===
           0 ? (
-
             <div className="ph-seller-panel">
-
               <div className="ph-empty">
-
                 <div className="ph-empty-icon">
                   ৳
                 </div>
@@ -2275,52 +2175,29 @@ function AdminDashboard() {
                 </strong>
 
                 <p>
-                  Seller payout information will
-                  appear here when buyers place orders.
+                  Seller payout information
+                  will appear here when buyers
+                  place orders.
                 </p>
-
               </div>
-
             </div>
-
           ) : (
-
             <div className="ph-seller-panel">
-
               <div className="ph-seller-head">
-
-                <span>
-                  SELLER
-                </span>
-
-                <span>
-                  TOTAL OWED
-                </span>
-
-                <span>
-                  WAITING
-                </span>
-
-                <span>
-                  READY
-                </span>
-
-                <span>
-                  RELEASED
-                </span>
-
+                <span>SELLER</span>
+                <span>TOTAL OWED</span>
+                <span>WAITING</span>
+                <span>READY</span>
+                <span>RELEASED</span>
               </div>
 
               {sellerFinancialSummary.map(
                 (seller) => (
-
                   <div
                     className="ph-seller-row"
                     key={seller.sellerId}
                   >
-
                     <div className="ph-seller">
-
                       <div className="ph-avatar">
                         {getInitials(
                           seller.sellerName
@@ -2328,7 +2205,6 @@ function AdminDashboard() {
                       </div>
 
                       <div className="ph-seller-name">
-
                         <strong>
                           {seller.sellerName}
                         </strong>
@@ -2336,23 +2212,18 @@ function AdminDashboard() {
                         <span>
                           @{seller.sellerUsername}
                         </span>
-
                       </div>
-
                     </div>
 
                     <div className="ph-seller-total">
-
                       <strong>
                         {formatMoney(
                           seller.totalOwed
                         )}
                       </strong>
-
                     </div>
 
                     <div className="ph-seller-metric">
-
                       <span>
                         IN PROGRESS
                       </span>
@@ -2364,16 +2235,13 @@ function AdminDashboard() {
                       </strong>
 
                       <small>
-                        {seller.waitingOrders} order(s)
+                        {seller.waitingOrders}{" "}
+                        order(s)
                       </small>
-
                     </div>
 
                     <div className="ph-seller-metric">
-
-                      <span>
-                        READY
-                      </span>
+                      <span>READY</span>
 
                       <strong>
                         {formatMoney(
@@ -2382,16 +2250,13 @@ function AdminDashboard() {
                       </strong>
 
                       <small>
-                        {seller.readyOrders} order(s)
+                        {seller.readyOrders}{" "}
+                        order(s)
                       </small>
-
                     </div>
 
                     <div className="ph-seller-metric">
-
-                      <span>
-                        PAID
-                      </span>
+                      <span>PAID</span>
 
                       <strong>
                         {formatMoney(
@@ -2400,20 +2265,15 @@ function AdminDashboard() {
                       </strong>
 
                       <small>
-                        {seller.releasedOrders} order(s)
+                        {seller.releasedOrders}{" "}
+                        order(s)
                       </small>
-
                     </div>
-
                   </div>
-
                 )
               )}
-
             </div>
-
           )}
-
         </section>
 
         {/* =====================================================
@@ -2421,11 +2281,8 @@ function AdminDashboard() {
         ====================================================== */}
 
         <section className="admin-section">
-
           <div className="admin-section-heading">
-
             <div>
-
               <span className="admin-section-label">
                 PAYOUT TRACKING
               </span>
@@ -2435,21 +2292,16 @@ function AdminDashboard() {
               </h2>
 
               <p>
-                Follow each seller payment from
-                order creation to final release.
+                Review completed seller
+                payouts and release ready
+                payments.
               </p>
-
             </div>
-
           </div>
 
-          {sellerPayouts.length ===
-          0 ? (
-
+          {sellerPayouts.length === 0 ? (
             <div className="ph-payout-panel">
-
               <div className="ph-empty">
-
                 <div className="ph-empty-icon">
                   →
                 </div>
@@ -2459,152 +2311,172 @@ function AdminDashboard() {
                 </strong>
 
                 <p>
-                  Payout records will be created
-                  automatically for verified orders.
+                  Payout records will be
+                  created automatically for
+                  verified orders.
                 </p>
-
               </div>
-
             </div>
-
           ) : (
-
             <div className="ph-payout-panel">
-
               {sellerPayouts
                 .slice(0, 10)
-                .map(
-                  (payout) => {
-
-                    /*
-                     * SAFE STATUS HANDLING
-                     *
-                     * Previously:
-                     * payout.payoutStatus.toLowerCase()
-                     *
-                     * If payoutStatus was undefined,
-                     * React crashed and the entire page
-                     * became white.
-                     */
-                    const payoutStatus =
-                      String(
-                        payout.payoutStatus ||
-                          "waiting"
-                      )
-                        .trim()
-                        .toLowerCase();
-
-                    const statusClass =
-                      payoutStatus ===
-                      "released"
-                        ? "released"
-                        : payoutStatus ===
-                          "ready"
-                        ? "ready"
-                        : "waiting";
-
-                    const displayStatus =
+                .map((payout) => {
+                  /*
+                   * IMPORTANT:
+                   * SellerPayout uses payoutStatus.
+                   * There is NO payout.status field.
+                   */
+                  const payoutStatus =
+                    String(
                       payout.payoutStatus ||
-                      "Waiting";
+                        "Waiting"
+                    )
+                      .trim()
+                      .toLowerCase();
 
-                    return (
-                      <div
-                        className="ph-payout-row"
-                        key={payout.id}
-                      >
+                  const statusClass =
+                    payoutStatus ===
+                    "released"
+                      ? "released"
+                      : payoutStatus ===
+                        "ready"
+                      ? "ready"
+                      : "waiting";
 
-                        <div className="ph-order">
+                  const displayStatus =
+                    payout.payoutStatus ||
+                    "Waiting";
 
-                          <span>
-                            ORDER
-                          </span>
+                  const isReleasing =
+                    processingPayoutId ===
+                    payout.id;
 
-                          <strong>
-                            #{payout.orderId}
-                          </strong>
+                  const canRelease =
+                    payoutStatus ===
+                    "ready";
 
-                        </div>
-
-                        <div className="ph-payout-project">
-
-                          <strong>
-                            {payout.projectTitle ||
-                              "Untitled Project"}
-                          </strong>
-
-                          <span>
-                            {payout.sellerName ||
-                              "Unknown Seller"}
-                            {" · "}
-                            @{payout.sellerUsername ||
-                              "unknown"}
-                          </span>
-
-                        </div>
-
-                        <div className="ph-payout-money">
-
-                          <span>
-                            PLATFORM
-                          </span>
-
-                          <strong>
-                            {formatMoney(
-                              payout.commissionAmount
-                            )}
-                          </strong>
-
-                        </div>
-
-                        <div className="ph-payout-money">
-
-                          <span>
-                            PROJECT VALUE
-                          </span>
-
-                          <strong>
-                            {formatMoney(
-                              payout.projectPrice
-                            )}
-                          </strong>
-
-                        </div>
-
-                        <div className="ph-payout-money seller">
-
-                          <span>
-                            SELLER
-                          </span>
-
-                          <strong>
-                            {formatMoney(
-                              payout.payoutAmount ??
-                                payout.sellerAmount ??
-                                0
-                            )}
-                          </strong>
-
-                        </div>
-
-                        <div>
-
-                          <span
-                            className={`ph-status ${statusClass}`}
-                          >
-                            {displayStatus}
-                          </span>
-
-                        </div>
-
-                      </div>
+                  const payoutAmount =
+                    Number(
+                      payout.payoutAmount ||
+                        payout.sellerAmount ||
+                        0
                     );
-                  }
-                )}
 
+                  return (
+                    <div
+                      className="ph-payout-row"
+                      key={payout.id}
+                    >
+                      <div className="ph-order">
+                        <span>ORDER</span>
+
+                        <strong>
+                          #{payout.orderId}
+                        </strong>
+                      </div>
+
+                      <div className="ph-payout-project">
+                        <strong>
+                          {payout.projectTitle ||
+                            "Untitled Project"}
+                        </strong>
+
+                        <span>
+                          {payout.sellerName ||
+                            "Unknown Seller"}
+                          {" · "}
+                          @
+                          {payout.sellerUsername ||
+                            "unknown"}
+                        </span>
+                      </div>
+
+                      <div className="ph-payout-money">
+                        <span>PLATFORM</span>
+
+                        <strong>
+                          {formatMoney(
+                            payout.commissionAmount
+                          )}
+                        </strong>
+                      </div>
+
+                      <div className="ph-payout-money">
+                        <span>
+                          PROJECT VALUE
+                        </span>
+
+                        <strong>
+                          {formatMoney(
+                            payout.projectPrice
+                          )}
+                        </strong>
+                      </div>
+
+                      <div className="ph-payout-money seller">
+                        <span>SELLER</span>
+
+                        <strong>
+                          {formatMoney(
+                            payoutAmount
+                          )}
+                        </strong>
+                      </div>
+
+                      <div className="ph-status-area">
+                        <span
+                          className={`ph-status ${statusClass}`}
+                        >
+                          {displayStatus}
+                        </span>
+
+                        {canRelease && (
+                          <button
+                            type="button"
+                            className="ph-release-button"
+                            disabled={
+                              isReleasing
+                            }
+                            onClick={() =>
+                              handleReleasePayout(
+                                payout.id
+                              )
+                            }
+                          >
+                            {isReleasing
+                              ? "Releasing..."
+                              : "Release Payment"}
+                          </button>
+                        )}
+
+                        {payoutStatus ===
+                          "waiting" && (
+                          <button
+                            type="button"
+                            className="ph-release-button waiting"
+                            disabled
+                          >
+                            Waiting for Completion
+                          </button>
+                        )}
+
+                        {payoutStatus ===
+                          "released" && (
+                          <button
+                            type="button"
+                            className="ph-release-button released"
+                            disabled
+                          >
+                            ✓ Released
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
             </div>
-
           )}
-
         </section>
 
         {/* =========================
@@ -2612,33 +2484,23 @@ function AdminDashboard() {
         ========================== */}
 
         <section className="admin-section">
-
           <div className="admin-section-heading">
-
             <div>
-
               <span className="admin-section-label">
                 COMMUNITY
               </span>
 
-              <h2>
-                Member Overview
-              </h2>
-
+              <h2>Member Overview</h2>
             </div>
-
           </div>
 
           <div className="admin-community-grid">
-
             <div className="admin-community-card">
-
               <div className="admin-community-number">
                 {activeUsers.length}
               </div>
 
               <div>
-
                 <strong>
                   Active Members
                 </strong>
@@ -2646,73 +2508,51 @@ function AdminDashboard() {
                 <span>
                   Currently active accounts
                 </span>
-
               </div>
-
             </div>
 
             <div className="admin-community-card">
-
               <div className="admin-community-number">
                 {verifiedUsers.length}
               </div>
 
               <div>
-
-                <strong>
-                  Verified
-                </strong>
+                <strong>Verified</strong>
 
                 <span>
                   Approved member accounts
                 </span>
-
               </div>
-
             </div>
 
             <div className="admin-community-card">
-
               <div className="admin-community-number">
                 {sellers.length}
               </div>
 
               <div>
-
-                <strong>
-                  Sellers
-                </strong>
+                <strong>Sellers</strong>
 
                 <span>
                   Members offering projects
                 </span>
-
               </div>
-
             </div>
 
             <div className="admin-community-card">
-
               <div className="admin-community-number">
                 {buyers.length}
               </div>
 
               <div>
-
-                <strong>
-                  Buyers
-                </strong>
+                <strong>Buyers</strong>
 
                 <span>
                   Members purchasing projects
                 </span>
-
               </div>
-
             </div>
-
           </div>
-
         </section>
 
         {/* =========================
@@ -2720,151 +2560,107 @@ function AdminDashboard() {
         ========================== */}
 
         <section className="admin-section">
-
           <div className="admin-section-heading">
-
             <div>
-
               <span className="admin-section-label">
                 ATTENTION REQUIRED
               </span>
 
-              <h2>
-                Admin Queue
-              </h2>
-
+              <h2>Admin Queue</h2>
             </div>
-
           </div>
 
           <div className="admin-attention-grid">
-
             <a
               href="#admin-project-overview"
               className="admin-attention-card"
             >
-
               <div className="admin-attention-icon project">
                 □
               </div>
 
               <div>
-
-                <span>
-                  PROJECTS
-                </span>
+                <span>PROJECTS</span>
 
                 <strong>
                   {pendingProjects.length}
                 </strong>
 
-                <p>
-                  Need approval
-                </p>
-
+                <p>Need approval</p>
               </div>
 
               <span className="admin-attention-arrow">
                 →
               </span>
-
             </a>
 
             <a
               href="#admin-payments"
               className="admin-attention-card"
             >
-
               <div className="admin-attention-icon payment">
                 $
               </div>
 
               <div>
-
-                <span>
-                  PAYMENTS
-                </span>
+                <span>PAYMENTS</span>
 
                 <strong>
                   {pendingPayments.length}
                 </strong>
 
-                <p>
-                  Need verification
-                </p>
-
+                <p>Need verification</p>
               </div>
 
               <span className="admin-attention-arrow">
                 →
               </span>
-
             </a>
 
             <a
               href="#admin-users"
               className="admin-attention-card"
             >
-
               <div className="admin-attention-icon user">
                 ◎
               </div>
 
               <div>
-
-                <span>
-                  USERS
-                </span>
+                <span>USERS</span>
 
                 <strong>
                   {unverifiedUsers.length}
                 </strong>
 
-                <p>
-                  Need verification
-                </p>
-
+                <p>Need verification</p>
               </div>
 
               <span className="admin-attention-arrow">
                 →
               </span>
-
             </a>
 
             <div
               className="admin-attention-card disabled"
               id="admin-disputes"
             >
-
               <div className="admin-attention-icon dispute">
                 !
               </div>
 
               <div>
+                <span>DISPUTES</span>
 
-                <span>
-                  DISPUTES
-                </span>
+                <strong>—</strong>
 
-                <strong>
-                  —
-                </strong>
-
-                <p>
-                  Coming soon
-                </p>
-
+                <p>Coming soon</p>
               </div>
 
               <span className="admin-attention-arrow">
                 →
               </span>
-
             </div>
-
           </div>
-
         </section>
 
         {/* =========================
@@ -2875,39 +2671,29 @@ function AdminDashboard() {
           className="admin-operation-section"
           id="admin-project-overview"
         >
-
           <div className="admin-section-header compact">
-
             <div>
-
               <span className="admin-section-label">
                 MARKETPLACE
               </span>
 
-              <h2>
-                Project Overview
-              </h2>
+              <h2>Project Overview</h2>
 
               <p>
-                Current status of seller
-                project listings and
-                marketplace moderation.
+                Current status of seller project
+                listings and marketplace
+                moderation.
               </p>
-
             </div>
-
           </div>
 
           <div className="admin-operation-grid">
-
             <div className="admin-operation-card">
-
               <span className="operation-number">
                 {totalProjects}
               </span>
 
               <div>
-
                 <strong>
                   Total Projects
                 </strong>
@@ -2915,19 +2701,15 @@ function AdminDashboard() {
                 <small>
                   All submitted listings
                 </small>
-
               </div>
-
             </div>
 
             <div className="admin-operation-card pending">
-
               <span className="operation-number">
                 {pendingProjects.length}
               </span>
 
               <div>
-
                 <strong>
                   Pending Review
                 </strong>
@@ -2935,58 +2717,42 @@ function AdminDashboard() {
                 <small>
                   Awaiting admin approval
                 </small>
-
               </div>
-
             </div>
 
             <div className="admin-operation-card approved">
-
               <span className="operation-number">
                 {approvedProjects.length}
               </span>
 
               <div>
-
-                <strong>
-                  Approved
-                </strong>
+                <strong>Approved</strong>
 
                 <small>
                   Approved project listings
                 </small>
-
               </div>
-
             </div>
 
             <div className="admin-operation-card hidden">
-
               <span className="operation-number">
                 {unavailableProjects.length}
               </span>
 
               <div>
-
-                <strong>
-                  Hidden
-                </strong>
+                <strong>Hidden</strong>
 
                 <small>
                   Currently unavailable
                 </small>
-
               </div>
-
             </div>
-
           </div>
 
           <AdminProjectApproval
             projects={projects}
             onRefresh={loadDashboard}
           />
-
         </section>
 
         {/* =========================
@@ -2997,11 +2763,8 @@ function AdminDashboard() {
           className="admin-section"
           id="admin-payments"
         >
-
           <div className="admin-section-heading">
-
             <div>
-
               <span className="admin-section-label">
                 PAYMENT VERIFICATION
               </span>
@@ -3014,7 +2777,6 @@ function AdminDashboard() {
                 Review submitted payments and
                 confirm successful transactions.
               </p>
-
             </div>
 
             <Link
@@ -3023,14 +2785,10 @@ function AdminDashboard() {
             >
               Payment Center →
             </Link>
-
           </div>
 
-          {pendingPayments.length ===
-          0 ? (
-
+          {pendingPayments.length === 0 ? (
             <div className="admin-empty-card">
-
               <div className="admin-empty-icon">
                 ✓
               </div>
@@ -3043,125 +2801,106 @@ function AdminDashboard() {
                 All submitted payments have
                 been reviewed.
               </p>
-
             </div>
-
           ) : (
-
             <div className="admin-payment-list">
-
               {pendingPayments
                 .slice(0, 5)
-                .map(
-                  (payment) => {
+                .map((payment) => {
+                  const isProcessing =
+                    processingPaymentId ===
+                    payment.id;
 
-                    const isProcessing =
-                      processingPaymentId ===
-                      payment.id;
-
-                    return (
-                      <div
-                        className="admin-payment-row"
-                        key={payment.id}
-                      >
-
-                        <div className="admin-payment-id">
-                          #{payment.id}
-                        </div>
-
-                        <div className="admin-payment-info">
-
-                          <strong>
-                            {payment.projectTitle}
-                          </strong>
-
-                          <span>
-                            Order #{payment.orderId}
-                            {" · "}
-                            {payment.buyerName}
-                          </span>
-
-                          {payment.transactionId && (
-                            <small>
-                              TXN:{" "}
-                              {payment.transactionId}
-                            </small>
-                          )}
-
-                        </div>
-
-                        <div className="admin-payment-method">
-
-                          <span>
-                            METHOD
-                          </span>
-
-                          <strong>
-                            {payment.paymentMethod}
-                          </strong>
-
-                        </div>
-
-                        <div className="admin-payment-amount">
-
-                          <span>
-                            AMOUNT
-                          </span>
-
-                          <strong>
-                            ৳
-                            {payment.amount.toLocaleString()}
-                          </strong>
-
-                        </div>
-
-                        <div className="admin-payment-status">
-                          Pending
-                        </div>
-
-                        <div className="admin-payment-actions">
-
-                          <button
-                            type="button"
-                            className="admin-payment-verify"
-                            disabled={isProcessing}
-                            onClick={() =>
-                              handlePaymentAction(
-                                payment.id,
-                                "verify"
-                              )
-                            }
-                          >
-                            {isProcessing
-                              ? "Processing..."
-                              : "✓ Verify"}
-                          </button>
-
-                          <button
-                            type="button"
-                            className="admin-payment-reject"
-                            disabled={isProcessing}
-                            onClick={() =>
-                              handlePaymentAction(
-                                payment.id,
-                                "reject"
-                              )
-                            }
-                          >
-                            Reject
-                          </button>
-
-                        </div>
-
+                  return (
+                    <div
+                      className="admin-payment-row"
+                      key={payment.id}
+                    >
+                      <div className="admin-payment-id">
+                        #{payment.id}
                       </div>
-                    );
-                  }
-                )}
 
+                      <div className="admin-payment-info">
+                        <strong>
+                          {payment.projectTitle}
+                        </strong>
+
+                        <span>
+                          Order #{payment.orderId}
+                          {" · "}
+                          {payment.buyerName}
+                        </span>
+
+                        {payment.transactionId && (
+                          <small>
+                            TXN:{" "}
+                            {payment.transactionId}
+                          </small>
+                        )}
+                      </div>
+
+                      <div className="admin-payment-method">
+                        <span>METHOD</span>
+
+                        <strong>
+                          {payment.paymentMethod}
+                        </strong>
+                      </div>
+
+                      <div className="admin-payment-amount">
+                        <span>AMOUNT</span>
+
+                        <strong>
+                          {formatMoney(
+                            payment.amount
+                          )}
+                        </strong>
+                      </div>
+
+                      <div className="admin-payment-status">
+                        Pending
+                      </div>
+
+                      <div className="admin-payment-actions">
+                        <button
+                          type="button"
+                          className="admin-payment-verify"
+                          disabled={
+                            isProcessing
+                          }
+                          onClick={() =>
+                            handlePaymentAction(
+                              payment.id,
+                              "verify"
+                            )
+                          }
+                        >
+                          {isProcessing
+                            ? "Processing..."
+                            : "✓ Verify"}
+                        </button>
+
+                        <button
+                          type="button"
+                          className="admin-payment-reject"
+                          disabled={
+                            isProcessing
+                          }
+                          onClick={() =>
+                            handlePaymentAction(
+                              payment.id,
+                              "reject"
+                            )
+                          }
+                        >
+                          Reject
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
             </div>
-
           )}
-
         </section>
 
         {/* =========================
@@ -3172,11 +2911,8 @@ function AdminDashboard() {
           className="admin-section"
           id="admin-users"
         >
-
           <div className="admin-section-heading">
-
             <div>
-
               <span className="admin-section-label">
                 COMMUNITY MANAGEMENT
               </span>
@@ -3189,11 +2925,9 @@ function AdminDashboard() {
                 Search, review and manage
                 ProjectHub members.
               </p>
-
             </div>
 
             <div className="admin-user-header-stats">
-
               <span>
                 {users.length} total
               </span>
@@ -3201,17 +2935,12 @@ function AdminDashboard() {
               <span>
                 {verifiedUsers.length} verified
               </span>
-
             </div>
-
           </div>
 
           <div className="admin-user-toolbar">
-
             <div className="admin-user-search-area">
-
               <div className="admin-user-search">
-
                 <span className="admin-search-icon">
                   ⌕
                 </span>
@@ -3238,13 +2967,10 @@ function AdminDashboard() {
                     ×
                   </button>
                 )}
-
               </div>
-
             </div>
 
             <div className="admin-user-filter">
-
               <select
                 value={userFilter}
                 onChange={(event) =>
@@ -3280,42 +3006,29 @@ function AdminDashboard() {
                 <option value="seller">
                   Sellers
                 </option>
-
               </select>
-
             </div>
-
           </div>
 
           <div className="admin-user-result-bar">
-
             <div className="admin-user-summary">
-
-              <span>
-                Showing
-              </span>
+              <span>Showing</span>
 
               <strong>
                 {userStart}–{userEnd}
               </strong>
 
-              <span>
-                of
-              </span>
+              <span>of</span>
 
               <strong>
                 {filteredUsers.length}
               </strong>
 
-              <span>
-                members
-              </span>
-
+              <span>members</span>
             </div>
 
             {(userSearch ||
-              userFilter !==
-                "all") && (
+              userFilter !== "all") && (
               <button
                 type="button"
                 className="admin-clear-filter-button"
@@ -3327,14 +3040,10 @@ function AdminDashboard() {
                 Clear filters
               </button>
             )}
-
           </div>
 
-          {paginatedUsers.length ===
-          0 ? (
-
+          {paginatedUsers.length === 0 ? (
             <div className="admin-empty-card">
-
               <div className="admin-empty-icon">
                 ⌕
               </div>
@@ -3347,339 +3056,271 @@ function AdminDashboard() {
                 Try changing your search or
                 filter.
               </p>
-
             </div>
-
           ) : (
-
             <div className="admin-user-list">
+              {paginatedUsers.map((user) => {
+                const isExpanded =
+                  expandedUserId ===
+                  user.id;
 
-              {paginatedUsers.map(
-                (user) => {
+                const isAdmin =
+                  String(
+                    user.role || ""
+                  ).toLowerCase() ===
+                  "admin";
 
-                  const isExpanded =
-                    expandedUserId ===
-                    user.id;
+                return (
+                  <div
+                    key={user.id}
+                    className={
+                      isExpanded
+                        ? "admin-user-card expanded"
+                        : "admin-user-card"
+                    }
+                  >
+                    <div className="admin-user-main">
+                      <div className="admin-user-avatar">
+                        {getInitials(
+                          user.fullName
+                        )}
+                      </div>
 
-                  const isAdmin =
-                    (user.role || "")
-                      .toLowerCase() ===
-                    "admin";
+                      <div className="admin-user-identity">
+                        <strong>
+                          {user.fullName}
+                        </strong>
 
-                  return (
-                    <div
-                      key={user.id}
-                      className={
-                        isExpanded
-                          ? "admin-user-card expanded"
-                          : "admin-user-card"
-                      }
-                    >
+                        <span>
+                          @{user.username}
+                        </span>
+                      </div>
 
-                      <div className="admin-user-main">
+                      <div className="admin-user-role">
+                        <span>ROLE</span>
 
-                        <div className="admin-user-avatar">
-                          {getInitials(
-                            user.fullName
-                          )}
-                        </div>
+                        <strong>
+                          {user.role || "—"}
+                        </strong>
+                      </div>
 
-                        <div className="admin-user-identity">
+                      <div className="admin-user-university">
+                        <span>
+                          UNIVERSITY
+                        </span>
 
-                          <strong>
-                            {user.fullName}
-                          </strong>
+                        <strong>
+                          {user.university ||
+                            "—"}
+                        </strong>
+                      </div>
 
-                          <span>
-                            @{user.username}
+                      <div className="admin-user-status">
+                        {isAdmin ? (
+                          <span className="admin-user-badge admin">
+                            ADMIN
                           </span>
-
-                        </div>
-
-                        <div className="admin-user-role">
-
-                          <span>
-                            ROLE
+                        ) : user.isVerified ? (
+                          <span className="admin-user-badge verified">
+                            ✓ VERIFIED
                           </span>
-
-                          <strong>
-                            {user.role || "—"}
-                          </strong>
-
-                        </div>
-
-                        <div className="admin-user-university">
-
-                          <span>
-                            UNIVERSITY
+                        ) : (
+                          <span className="admin-user-badge unverified">
+                            UNVERIFIED
                           </span>
+                        )}
 
-                          <strong>
-                            {user.university ||
-                              "—"}
-                          </strong>
-
-                        </div>
-
-                        <div className="admin-user-status">
-
-                          {isAdmin ? (
-
-                            <span className="admin-user-badge admin">
-                              ADMIN
-                            </span>
-
-                          ) : user.isVerified ? (
-
-                            <span className="admin-user-badge verified">
-                              ✓ VERIFIED
-                            </span>
-
-                          ) : (
-
-                            <span className="admin-user-badge unverified">
-                              UNVERIFIED
-                            </span>
-
-                          )}
-
-                          {!user.isActive &&
-                            !isAdmin && (
+                        {!user.isActive &&
+                          !isAdmin && (
                             <span className="admin-user-badge inactive">
                               INACTIVE
                             </span>
                           )}
-
-                        </div>
-
-                        <button
-                          type="button"
-                          className="admin-user-details-button"
-                          onClick={() =>
-                            toggleUserDetails(
-                              user.id
-                            )
-                          }
-                        >
-                          {isExpanded
-                            ? "Hide Details ↑"
-                            : "View Details ↓"}
-                        </button>
-
                       </div>
 
-                      {isExpanded && (
+                      <button
+                        type="button"
+                        className="admin-user-details-button"
+                        onClick={() =>
+                          toggleUserDetails(
+                            user.id
+                          )
+                        }
+                      >
+                        {isExpanded
+                          ? "Hide Details ↑"
+                          : "View Details ↓"}
+                      </button>
+                    </div>
 
-                        <div className="admin-user-expanded">
+                    {isExpanded && (
+                      <div className="admin-user-expanded">
+                        <div className="admin-user-expanded-grid">
+                          <div className="admin-user-expanded-item">
+                            <span>EMAIL</span>
 
-                          <div className="admin-user-expanded-grid">
-
-                            <div className="admin-user-expanded-item">
-
-                              <span>
-                                EMAIL
-                              </span>
-
-                              <strong>
-                                {user.email ||
-                                  "—"}
-                              </strong>
-
-                            </div>
-
-                            <div className="admin-user-expanded-item">
-
-                              <span>
-                                CONTACT
-                              </span>
-
-                              <strong>
-                                {user.contactNumber ||
-                                  "—"}
-                              </strong>
-
-                            </div>
-
-                            <div className="admin-user-expanded-item">
-
-                              <span>
-                                STUDENT ID
-                              </span>
-
-                              <strong>
-                                {user.studentId ||
-                                  "—"}
-                              </strong>
-
-                            </div>
-
-                            <div className="admin-user-expanded-item">
-
-                              <span>
-                                DEPARTMENT
-                              </span>
-
-                              <strong>
-                                {user.department ||
-                                  "—"}
-                              </strong>
-
-                            </div>
-
-                            <div className="admin-user-expanded-item">
-
-                              <span>
-                                SEMESTER
-                              </span>
-
-                              <strong>
-                                {user.semester ||
-                                  "—"}
-                              </strong>
-
-                            </div>
-
-                            <div className="admin-user-expanded-item">
-
-                              <span>
-                                GRADUATION YEAR
-                              </span>
-
-                              <strong>
-                                {user.graduationYear ||
-                                  "—"}
-                              </strong>
-
-                            </div>
-
-                            <div className="admin-user-expanded-item">
-
-                              <span>
-                                JOINED
-                              </span>
-
-                              <strong>
-                                {formatDate(
-                                  user.createdAt
-                                )}
-                              </strong>
-
-                            </div>
-
-                            <div className="admin-user-expanded-item">
-
-                              <span>
-                                LAST UPDATED
-                              </span>
-
-                              <strong>
-                                {formatDate(
-                                  user.updatedAt
-                                )}
-                              </strong>
-
-                            </div>
-
+                            <strong>
+                              {user.email ||
+                                "—"}
+                            </strong>
                           </div>
 
-                          {!isAdmin && (
+                          <div className="admin-user-expanded-item">
+                            <span>
+                              CONTACT
+                            </span>
 
-                            <div className="admin-user-expanded-actions">
+                            <strong>
+                              {user.contactNumber ||
+                                "—"}
+                            </strong>
+                          </div>
 
-                              <div>
+                          <div className="admin-user-expanded-item">
+                            <span>
+                              STUDENT ID
+                            </span>
 
-                                <span>
-                                  ACCOUNT STATUS
-                                </span>
+                            <strong>
+                              {user.studentId ||
+                                "—"}
+                            </strong>
+                          </div>
 
-                                <p>
-                                  {user.isActive
-                                    ? "This account is currently active."
-                                    : "This account is currently inactive."}
-                                </p>
+                          <div className="admin-user-expanded-item">
+                            <span>
+                              DEPARTMENT
+                            </span>
 
-                              </div>
+                            <strong>
+                              {user.department ||
+                                "—"}
+                            </strong>
+                          </div>
 
-                              <div className="admin-user-action-buttons">
+                          <div className="admin-user-expanded-item">
+                            <span>
+                              SEMESTER
+                            </span>
 
-                                {user.isVerified ? (
+                            <strong>
+                              {user.semester ||
+                                "—"}
+                            </strong>
+                          </div>
 
-                                  <button
-                                    type="button"
-                                    className="admin-user-action unverify"
-                                    onClick={() =>
-                                      handleUserAction(
-                                        user.id,
-                                        "unverify"
-                                      )
-                                    }
-                                  >
-                                    Remove Verification
-                                  </button>
+                          <div className="admin-user-expanded-item">
+                            <span>
+                              GRADUATION YEAR
+                            </span>
 
-                                ) : (
+                            <strong>
+                              {user.graduationYear ||
+                                "—"}
+                            </strong>
+                          </div>
 
-                                  <button
-                                    type="button"
-                                    className="admin-user-action verify"
-                                    disabled={
-                                      !user.isActive
-                                    }
-                                    onClick={() =>
-                                      handleUserAction(
-                                        user.id,
-                                        "verify"
-                                      )
-                                    }
-                                  >
-                                    ✓ Verify Member
-                                  </button>
+                          <div className="admin-user-expanded-item">
+                            <span>JOINED</span>
 
-                                )}
+                            <strong>
+                              {formatDate(
+                                user.createdAt
+                              )}
+                            </strong>
+                          </div>
 
+                          <div className="admin-user-expanded-item">
+                            <span>
+                              LAST UPDATED
+                            </span>
+
+                            <strong>
+                              {formatDate(
+                                user.updatedAt
+                              )}
+                            </strong>
+                          </div>
+                        </div>
+
+                        {!isAdmin && (
+                          <div className="admin-user-expanded-actions">
+                            <div>
+                              <span>
+                                ACCOUNT STATUS
+                              </span>
+
+                              <p>
+                                {user.isActive
+                                  ? "This account is currently active."
+                                  : "This account is currently inactive."}
+                              </p>
+                            </div>
+
+                            <div className="admin-user-action-buttons">
+                              {user.isVerified ? (
                                 <button
                                   type="button"
-                                  className={
-                                    user.isActive
-                                      ? "admin-user-action deactivate"
-                                      : "admin-user-action activate"
+                                  className="admin-user-action unverify"
+                                  onClick={() =>
+                                    handleUserAction(
+                                      user.id,
+                                      "unverify"
+                                    )
+                                  }
+                                >
+                                  Remove Verification
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  className="admin-user-action verify"
+                                  disabled={
+                                    !user.isActive
                                   }
                                   onClick={() =>
                                     handleUserAction(
                                       user.id,
-                                      "toggle-status"
+                                      "verify"
                                     )
                                   }
                                 >
-                                  {user.isActive
-                                    ? "Deactivate Account"
-                                    : "Activate Account"}
+                                  ✓ Verify Member
                                 </button>
+                              )}
 
-                              </div>
-
+                              <button
+                                type="button"
+                                className={
+                                  user.isActive
+                                    ? "admin-user-action deactivate"
+                                    : "admin-user-action activate"
+                                }
+                                onClick={() =>
+                                  handleUserAction(
+                                    user.id,
+                                    "toggle-status"
+                                  )
+                                }
+                              >
+                                {user.isActive
+                                  ? "Deactivate Account"
+                                  : "Activate Account"}
+                              </button>
                             </div>
-
-                          )}
-
-                        </div>
-
-                      )}
-
-                    </div>
-                  );
-                }
-              )}
-
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
-
           )}
 
           {filteredUsers.length >
             USERS_PER_PAGE && (
-
             <div className="admin-user-pagination">
-
               <button
                 type="button"
                 className="admin-page-button previous"
@@ -3700,20 +3341,16 @@ function AdminDashboard() {
               </button>
 
               <div className="admin-page-numbers">
-
                 {getPageNumbers().map(
                   (page, index) =>
                     page === "..." ? (
-
                       <span
                         key={`ellipsis-${index}`}
                         className="admin-page-ellipsis"
                       >
                         …
                       </span>
-
                     ) : (
-
                       <button
                         type="button"
                         key={page}
@@ -3731,10 +3368,8 @@ function AdminDashboard() {
                       >
                         {page}
                       </button>
-
                     )
                 )}
-
               </div>
 
               <button
@@ -3756,11 +3391,8 @@ function AdminDashboard() {
               >
                 Next →
               </button>
-
             </div>
-
           )}
-
         </section>
 
         {/* =========================
@@ -3771,40 +3403,31 @@ function AdminDashboard() {
           className="admin-section"
           id="admin-orders"
         >
-
           <div className="admin-section-heading">
-
             <div>
-
               <span className="admin-section-label">
                 TRANSACTION CONTROL
               </span>
 
-              <h2>
-                Orders
-              </h2>
+              <h2>Orders</h2>
 
               <p>
                 Full order management will be
                 connected here.
               </p>
-
             </div>
 
             <span className="admin-coming-soon">
               COMING SOON
             </span>
-
           </div>
 
           <div className="admin-roadmap-card">
-
             <div className="admin-roadmap-icon">
               ≡
             </div>
 
             <div>
-
               <strong>
                 Order Management Center
               </strong>
@@ -3815,11 +3438,8 @@ function AdminDashboard() {
                 buyer reviews and seller
                 payouts from one place.
               </p>
-
             </div>
-
           </div>
-
         </section>
 
         {/* =========================
@@ -3827,11 +3447,8 @@ function AdminDashboard() {
         ========================== */}
 
         <section className="admin-section">
-
           <div className="admin-section-heading">
-
             <div>
-
               <span className="admin-section-label">
                 PLATFORM ROADMAP
               </span>
@@ -3839,21 +3456,14 @@ function AdminDashboard() {
               <h2>
                 What's Coming Next
               </h2>
-
             </div>
-
           </div>
 
           <div className="admin-roadmap-grid">
-
             <div className="admin-roadmap-item active">
-
-              <span>
-                01
-              </span>
+              <span>01</span>
 
               <div>
-
                 <strong>
                   Project Approval
                 </strong>
@@ -3862,23 +3472,15 @@ function AdminDashboard() {
                   Review and approve seller
                   listings.
                 </p>
-
               </div>
 
-              <b>
-                ACTIVE
-              </b>
-
+              <b>ACTIVE</b>
             </div>
 
             <div className="admin-roadmap-item active">
-
-              <span>
-                02
-              </span>
+              <span>02</span>
 
               <div>
-
                 <strong>
                   Member Verification
                 </strong>
@@ -3887,23 +3489,15 @@ function AdminDashboard() {
                   Verify and manage marketplace
                   members.
                 </p>
-
               </div>
 
-              <b>
-                ACTIVE
-              </b>
-
+              <b>ACTIVE</b>
             </div>
 
             <div className="admin-roadmap-item active">
-
-              <span>
-                03
-              </span>
+              <span>03</span>
 
               <div>
-
                 <strong>
                   Payment Verification
                 </strong>
@@ -3912,73 +3506,33 @@ function AdminDashboard() {
                   Review buyer payment
                   submissions.
                 </p>
-
               </div>
 
-              <b>
-                ACTIVE
-              </b>
-
+              <b>ACTIVE</b>
             </div>
 
             <div className="admin-roadmap-item active">
-
-              <span>
-                04
-              </span>
+              <span>04</span>
 
               <div>
-
                 <strong>
                   Financial Management
                 </strong>
 
                 <p>
                   Track received funds, seller
-                  liabilities and platform earnings.
+                  liabilities and platform
+                  earnings.
                 </p>
-
               </div>
 
-              <b>
-                ACTIVE
-              </b>
-
+              <b>ACTIVE</b>
             </div>
 
-            <div className="admin-roadmap-item">
-
-              <span>
-                05
-              </span>
+            <div className="admin-roadmap-item active">
+              <span>05</span>
 
               <div>
-
-                <strong>
-                  Order Management
-                </strong>
-
-                <p>
-                  Monitor active marketplace
-                  transactions.
-                </p>
-
-              </div>
-
-              <b>
-                SOON
-              </b>
-
-            </div>
-
-            <div className="admin-roadmap-item">
-
-              <span>
-                06
-              </span>
-
-              <div>
-
                 <strong>
                   Seller Payouts
                 </strong>
@@ -3987,23 +3541,32 @@ function AdminDashboard() {
                   Release completed seller
                   payments.
                 </p>
-
               </div>
 
-              <b>
-                SOON
-              </b>
-
+              <b>ACTIVE</b>
             </div>
 
             <div className="admin-roadmap-item">
-
-              <span>
-                07
-              </span>
+              <span>06</span>
 
               <div>
+                <strong>
+                  Order Management
+                </strong>
 
+                <p>
+                  Monitor active marketplace
+                  transactions.
+                </p>
+              </div>
+
+              <b>SOON</b>
+            </div>
+
+            <div className="admin-roadmap-item">
+              <span>07</span>
+
+              <div>
                 <strong>
                   Dispute Center
                 </strong>
@@ -4012,23 +3575,15 @@ function AdminDashboard() {
                   Handle buyer and seller
                   disputes.
                 </p>
-
               </div>
 
-              <b>
-                SOON
-              </b>
-
+              <b>SOON</b>
             </div>
 
             <div className="admin-roadmap-item">
-
-              <span>
-                08
-              </span>
+              <span>08</span>
 
               <div>
-
                 <strong>
                   Platform Analytics
                 </strong>
@@ -4037,23 +3592,18 @@ function AdminDashboard() {
                   Revenue, activity and
                   marketplace insights.
                 </p>
-
               </div>
 
-              <b>
-                SOON
-              </b>
-
+              <b>SOON</b>
             </div>
-
           </div>
-
         </section>
 
-        {/* FOOTER */}
+        {/* =========================
+            FOOTER
+        ========================== */}
 
         <footer className="admin-footer">
-
           <span>
             PROJECTHUB ADMIN
           </span>
@@ -4062,14 +3612,9 @@ function AdminDashboard() {
             Marketplace Control Center
           </span>
 
-          <span>
-            v1.0
-          </span>
-
+          <span>v1.0</span>
         </footer>
-
       </main>
-
     </div>
   );
 }

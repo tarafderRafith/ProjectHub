@@ -1,3 +1,4 @@
+
 import {
   useEffect,
   useState,
@@ -45,6 +46,9 @@ interface BuyerOrder {
   status: string;
   buyerMessage: string | null;
   deliveryNote?: string | null;
+  githubLink?: string | null;
+  deliveryLink?: string | null;
+  revisionNote?: string | null;
   expectedDeliveryDate?: string | null;
   createdAt: string;
   updatedAt: string;
@@ -62,6 +66,9 @@ interface SellerOrder {
   status: string;
   buyerMessage: string | null;
   deliveryNote: string | null;
+  githubLink?: string | null;
+  deliveryLink?: string | null;
+  revisionNote?: string | null;
   expectedDeliveryDate: string | null;
   createdAt: string;
   updatedAt: string;
@@ -109,8 +116,28 @@ function Dashboard() {
   const [actionOrderId, setActionOrderId] =
     useState<number | null>(null);
 
+  // ==========================================
+  // DELIVERY FORM DATA
+  // ==========================================
+
   const [deliveryNotes, setDeliveryNotes] =
     useState<Record<number, string>>({});
+
+  const [githubLinks, setGithubLinks] =
+    useState<Record<number, string>>({});
+
+  const [deliveryLinks, setDeliveryLinks] =
+    useState<Record<number, string>>({});
+
+  // ==========================================
+  // REVISION DATA
+  // ==========================================
+
+  const [revisionNotes, setRevisionNotes] =
+    useState<Record<number, string>>({});
+
+  const [revisionOpen, setRevisionOpen] =
+    useState<Record<number, boolean>>({});
 
   const getToken = () => {
     return (
@@ -128,6 +155,10 @@ function Dashboard() {
       return {};
     }
   };
+
+  // ==========================================
+  // LOAD SELLER PROJECTS
+  // ==========================================
 
   const loadSellerProjects = async () => {
     const token = getToken();
@@ -151,7 +182,8 @@ function Dashboard() {
         }
       );
 
-      const result = await getApiResult(response);
+      const result =
+        await getApiResult(response);
 
       if (!response.ok) {
         throw new Error(
@@ -181,6 +213,10 @@ function Dashboard() {
     }
   };
 
+  // ==========================================
+  // LOAD BUYER ORDERS
+  // ==========================================
+
   const loadBuyerOrders = async () => {
     const token = getToken();
 
@@ -203,7 +239,8 @@ function Dashboard() {
         }
       );
 
-      const result = await getApiResult(response);
+      const result =
+        await getApiResult(response);
 
       if (!response.ok) {
         throw new Error(
@@ -233,6 +270,10 @@ function Dashboard() {
     }
   };
 
+  // ==========================================
+  // LOAD SELLER ORDERS
+  // ==========================================
+
   const loadSellerOrders = async () => {
     const token = getToken();
 
@@ -255,7 +296,8 @@ function Dashboard() {
         }
       );
 
-      const result = await getApiResult(response);
+      const result =
+        await getApiResult(response);
 
       if (!response.ok) {
         throw new Error(
@@ -284,6 +326,10 @@ function Dashboard() {
       setOrdersLoading(false);
     }
   };
+
+  // ==========================================
+  // LOAD USER
+  // ==========================================
 
   useEffect(() => {
     let isMounted = true;
@@ -361,6 +407,10 @@ function Dashboard() {
     };
   }, [navigate]);
 
+  // ==========================================
+  // USER INFORMATION
+  // ==========================================
+
   const userName =
     user?.fullName ||
     "ProjectHub User";
@@ -384,6 +434,10 @@ function Dashboard() {
   const isSeller =
     String(userRole).toLowerCase() ===
     "seller";
+
+  // ==========================================
+  // ACTIVE ORDERS
+  // ==========================================
 
   const isOrderActive = (
     status: string
@@ -410,6 +464,41 @@ function Dashboard() {
           isOrderActive(order.status)
       ).length;
 
+  // ==========================================
+  // SELLER ORDER STATISTICS
+  // ==========================================
+
+  const sellerWaitingOrders =
+    sellerOrders.filter(
+      (order) =>
+        order.status === "Payment Held"
+    ).length;
+
+  const sellerWorkingOrders =
+    sellerOrders.filter(
+      (order) =>
+        order.status === "Seller Working" ||
+        order.status === "Revision Requested"
+    ).length;
+
+  const sellerSubmittedOrders =
+    sellerOrders.filter(
+      (order) =>
+        order.status === "Submitted" ||
+        order.status === "Buyer Review"
+    ).length;
+
+  const sellerCompletedOrders =
+    sellerOrders.filter(
+      (order) =>
+        order.status === "Completed" ||
+        order.status === "Payment Released"
+    ).length;
+
+  // ==========================================
+  // SCROLL TO ORDERS
+  // ==========================================
+
   const scrollToOrders = () => {
     setActiveMenu("Orders");
 
@@ -428,6 +517,10 @@ function Dashboard() {
     }, 50);
   };
 
+  // ==========================================
+  // LOGOUT
+  // ==========================================
+
   const handleLogout = () => {
     localStorage.removeItem(
       "projecthub_token"
@@ -439,6 +532,10 @@ function Dashboard() {
 
     navigate("/login");
   };
+
+  // ==========================================
+  // DELETE PROJECT
+  // ==========================================
 
   const handleDeleteProject = async (
     projectId: number,
@@ -510,6 +607,10 @@ function Dashboard() {
     }
   };
 
+  // ==========================================
+  // SELLER: START WORK
+  // ==========================================
+
   const handleStartWork = async (
     orderId: number
   ) => {
@@ -579,15 +680,57 @@ function Dashboard() {
     }
   };
 
+  // ==========================================
+  // SELLER: SUBMIT / DELIVER WORK
+  // ==========================================
+
   const handleSubmitWork = async (
     orderId: number
   ) => {
     const deliveryNote =
-      deliveryNotes[orderId]?.trim();
+      deliveryNotes[orderId]?.trim() || "";
+
+    const githubLink =
+      githubLinks[orderId]?.trim() || "";
+
+    const deliveryLink =
+      deliveryLinks[orderId]?.trim() || "";
+
+    if (!githubLink) {
+      window.alert(
+        "Please provide the GitHub repository link."
+      );
+      return;
+    }
+
+    if (!deliveryLink) {
+      window.alert(
+        "Please provide the delivery link."
+      );
+      return;
+    }
 
     if (!deliveryNote) {
       window.alert(
-        "Please write a delivery note before submitting the work."
+        "Please write a delivery message before submitting the work."
+      );
+      return;
+    }
+
+    try {
+      new URL(githubLink);
+    } catch {
+      window.alert(
+        "Please enter a valid GitHub repository URL."
+      );
+      return;
+    }
+
+    try {
+      new URL(deliveryLink);
+    } catch {
+      window.alert(
+        "Please enter a valid delivery URL."
       );
       return;
     }
@@ -614,6 +757,8 @@ function Dashboard() {
           },
           body: JSON.stringify({
             deliveryNote,
+            githubLink,
+            deliveryLink,
           }),
         }
       );
@@ -638,6 +783,9 @@ function Dashboard() {
                     status:
                       "Submitted",
                     deliveryNote,
+                    githubLink,
+                    deliveryLink,
+                    revisionNote: null,
                     updatedAt:
                       new Date().toISOString(),
                   }
@@ -657,8 +805,32 @@ function Dashboard() {
         }
       );
 
+      setGithubLinks(
+        (current) => {
+          const updated = {
+            ...current,
+          };
+
+          delete updated[orderId];
+
+          return updated;
+        }
+      );
+
+      setDeliveryLinks(
+        (current) => {
+          const updated = {
+            ...current,
+          };
+
+          delete updated[orderId];
+
+          return updated;
+        }
+      );
+
       window.alert(
-        "Work submitted successfully."
+        "Work delivered successfully.\n\nThe buyer can now review your project."
       );
     } catch (error) {
       console.error(
@@ -675,6 +847,118 @@ function Dashboard() {
       setActionOrderId(null);
     }
   };
+
+  // ==========================================
+  // BUYER: REQUEST REVISION
+  // ==========================================
+
+  const handleRequestRevision = async (
+    orderId: number
+  ) => {
+    const revisionNote =
+      revisionNotes[orderId]?.trim();
+
+    if (!revisionNote) {
+      window.alert(
+        "Please explain what changes you need from the seller."
+      );
+      return;
+    }
+
+    const token = getToken();
+
+    if (!token) {
+      navigate("/login");
+      return;
+    }
+
+    try {
+      setActionOrderId(orderId);
+
+      const response = await fetch(
+        `http://localhost:5038/api/orders/${orderId}/request-revision`,
+        {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type":
+              "application/json",
+            Accept: "application/json",
+          },
+          body: JSON.stringify({
+            revisionNote,
+          }),
+        }
+      );
+
+      const result =
+        await getApiResult(response);
+
+      if (!response.ok) {
+        throw new Error(
+          result?.message ||
+            "Unable to request revision."
+        );
+      }
+
+      setBuyerOrders(
+        (orders) =>
+          orders.map(
+            (order) =>
+              order.id === orderId
+                ? {
+                    ...order,
+                    status:
+                      "Revision Requested",
+                    revisionNote,
+                    updatedAt:
+                      new Date().toISOString(),
+                  }
+                : order
+          )
+      );
+
+      setRevisionNotes(
+        (current) => {
+          const updated = {
+            ...current,
+          };
+
+          delete updated[orderId];
+
+          return updated;
+        }
+      );
+
+      setRevisionOpen(
+        (current) => ({
+          ...current,
+          [orderId]: false,
+        })
+      );
+
+      window.alert(
+        "Revision request sent to the seller."
+      );
+    } catch (error) {
+      console.error(
+        "Failed to request revision:",
+        error
+      );
+
+      window.alert(
+        error instanceof Error
+          ? error.message
+          : "Unable to request revision."
+      );
+    } finally {
+      setActionOrderId(null);
+    }
+  };
+
+  // ==========================================
+  // BUYER: REVIEW WORK
+  // ==========================================
 
   const handleReviewWork = async (
     orderId: number
@@ -745,12 +1029,16 @@ function Dashboard() {
     }
   };
 
+  // ==========================================
+  // BUYER: COMPLETE ORDER
+  // ==========================================
+
   const handleCompleteOrder = async (
     orderId: number
   ) => {
     const confirmed =
       window.confirm(
-        "Are you sure you want to complete this order?\n\nAfter completion, the seller payout will become ready for release."
+        "Are you sure you want to complete this order?\n\nAfter completion, the seller payout will become ready for release by ProjectHub."
       );
 
     if (!confirmed) {
@@ -805,7 +1093,7 @@ function Dashboard() {
       );
 
       window.alert(
-        "Order completed successfully."
+        "Order completed successfully.\n\nThe seller payout is now ready for ProjectHub admin release."
       );
     } catch (error) {
       console.error(
@@ -823,6 +1111,10 @@ function Dashboard() {
     }
   };
 
+  // ==========================================
+  // STATUS STYLE
+  // ==========================================
+
   const getStatusStyle = (
     status: string
   ) => {
@@ -832,7 +1124,95 @@ function Dashboard() {
 
     if (
       normalized.includes(
+        "payment pending"
+      )
+    ) {
+      return {
+        background: "#fef3c7",
+        color: "#92400e",
+      };
+    }
+
+    if (
+      normalized.includes(
+        "pending verification"
+      )
+    ) {
+      return {
+        background: "#fef3c7",
+        color: "#92400e",
+      };
+    }
+
+    if (
+      normalized.includes(
+        "held"
+      )
+    ) {
+      return {
+        background: "#dbeafe",
+        color: "#1d4ed8",
+      };
+    }
+
+    if (
+      normalized.includes(
+        "working"
+      )
+    ) {
+      return {
+        background: "#e0e7ff",
+        color: "#4338ca",
+      };
+    }
+
+    if (
+      normalized.includes(
+        "revision"
+      )
+    ) {
+      return {
+        background: "#fee2e2",
+        color: "#b91c1c",
+      };
+    }
+
+    if (
+      normalized.includes(
+        "submitted"
+      )
+    ) {
+      return {
+        background: "#fef3c7",
+        color: "#92400e",
+      };
+    }
+
+    if (
+      normalized.includes(
+        "review"
+      )
+    ) {
+      return {
+        background: "#ede9fe",
+        color: "#6d28d9",
+      };
+    }
+
+    if (
+      normalized.includes(
         "completed"
+      )
+    ) {
+      return {
+        background: "#dcfce7",
+        color: "#166534",
+      };
+    }
+
+    if (
+      normalized.includes(
+        "released"
       )
     ) {
       return {
@@ -852,50 +1232,533 @@ function Dashboard() {
       };
     }
 
-    if (
-      normalized.includes(
-        "held"
-      ) ||
-      normalized.includes(
-        "working"
-      )
-    ) {
-      return {
-        background: "#dbeafe",
-        color: "#1d4ed8",
-      };
-    }
-
-    if (
-      normalized.includes(
-        "submitted"
-      ) ||
-      normalized.includes(
-        "review"
-      )
-    ) {
-      return {
-        background: "#fef3c7",
-        color: "#92400e",
-      };
-    }
-
-    if (
-      normalized.includes(
-        "released"
-      )
-    ) {
-      return {
-        background: "#dcfce7",
-        color: "#166534",
-      };
-    }
-
     return {
       background: "#f1f5f9",
       color: "#475569",
     };
   };
+
+  // ==========================================
+  // SELLER ACTION AREA
+  // ==========================================
+
+  const renderSellerOrderAction = (
+    order: SellerOrder
+  ) => {
+    const isActionRunning =
+      actionOrderId === order.id;
+
+    if (order.status === "Payment Held") {
+      return (
+        <div
+          style={{
+            marginTop: "18px",
+            padding: "16px",
+            borderRadius: "14px",
+            background: "#eff6ff",
+            border: "1px solid #bfdbfe",
+          }}
+        >
+          <div
+            style={{
+              marginBottom: "12px",
+            }}
+          >
+            <strong
+              style={{
+                display: "block",
+                color: "#1e3a8a",
+                fontSize: "14px",
+                marginBottom: "5px",
+              }}
+            >
+              Payment verified — ready to start
+            </strong>
+
+            <span
+              style={{
+                color: "#475569",
+                fontSize: "13px",
+                lineHeight: 1.5,
+              }}
+            >
+              ProjectHub has verified the
+              buyer's payment. You can now
+              start working on this project.
+            </span>
+          </div>
+
+          <button
+            type="button"
+            className="dashboard-primary-button"
+            disabled={isActionRunning}
+            onClick={() =>
+              handleStartWork(order.id)
+            }
+          >
+            {isActionRunning
+              ? "Starting..."
+              : "Start Work →"}
+          </button>
+        </div>
+      );
+    }
+
+    if (
+      order.status === "Seller Working" ||
+      order.status === "Revision Requested"
+    ) {
+      const isRevision =
+        order.status === "Revision Requested";
+
+      return (
+        <div
+          style={{
+            marginTop: "18px",
+            padding: "18px",
+            borderRadius: "14px",
+            background: isRevision
+              ? "#fff7ed"
+              : "#eef2ff",
+            border: isRevision
+              ? "1px solid #fed7aa"
+              : "1px solid #c7d2fe",
+          }}
+        >
+          {isRevision && (
+            <div
+              style={{
+                marginBottom: "14px",
+                padding: "13px 14px",
+                borderRadius: "10px",
+                background: "#ffedd5",
+                color: "#9a3412",
+                fontSize: "13px",
+                lineHeight: 1.6,
+              }}
+            >
+              <strong>
+                Revision requested
+              </strong>
+
+              {order.revisionNote && (
+                <div
+                  style={{
+                    marginTop: "5px",
+                  }}
+                >
+                  Buyer says:{" "}
+                  {order.revisionNote}
+                </div>
+              )}
+            </div>
+          )}
+
+          <div
+            style={{
+              marginBottom: "14px",
+            }}
+          >
+            <strong
+              style={{
+                display: "block",
+                color: isRevision
+                  ? "#9a3412"
+                  : "#3730a3",
+                fontSize: "15px",
+                marginBottom: "5px",
+              }}
+            >
+              {isRevision
+                ? "Update your work and deliver again"
+                : "Deliver your completed work"}
+            </strong>
+
+            <span
+              style={{
+                color: "#475569",
+                fontSize: "13px",
+                lineHeight: 1.5,
+              }}
+            >
+              Provide both your GitHub repository
+              and the link where the buyer can
+              access the completed files.
+            </span>
+          </div>
+
+          {/* GITHUB LINK */}
+
+          <div
+            style={{
+              marginBottom: "10px",
+            }}
+          >
+            <label
+              style={{
+                display: "block",
+                fontSize: "12px",
+                fontWeight: 700,
+                color: "#334155",
+                marginBottom: "6px",
+              }}
+            >
+              GitHub Repository Link
+            </label>
+
+            <input
+              type="url"
+              value={
+                githubLinks[order.id] || ""
+              }
+              onChange={(event) =>
+                setGithubLinks(
+                  (current) => ({
+                    ...current,
+                    [order.id]:
+                      event.target.value,
+                  })
+                )
+              }
+              placeholder="https://github.com/username/project"
+              style={{
+                width: "100%",
+                boxSizing: "border-box",
+                padding: "12px",
+                border:
+                  "1px solid #cbd5e1",
+                borderRadius: "10px",
+                fontFamily: "inherit",
+                fontSize: "14px",
+                outline: "none",
+              }}
+            />
+          </div>
+
+          {/* DELIVERY LINK */}
+
+          <div
+            style={{
+              marginBottom: "10px",
+            }}
+          >
+            <label
+              style={{
+                display: "block",
+                fontSize: "12px",
+                fontWeight: 700,
+                color: "#334155",
+                marginBottom: "6px",
+              }}
+            >
+              Delivery Link
+            </label>
+
+            <input
+              type="url"
+              value={
+                deliveryLinks[order.id] || ""
+              }
+              onChange={(event) =>
+                setDeliveryLinks(
+                  (current) => ({
+                    ...current,
+                    [order.id]:
+                      event.target.value,
+                  })
+                )
+              }
+              placeholder="https://drive.google.com/..."
+              style={{
+                width: "100%",
+                boxSizing: "border-box",
+                padding: "12px",
+                border:
+                  "1px solid #cbd5e1",
+                borderRadius: "10px",
+                fontFamily: "inherit",
+                fontSize: "14px",
+                outline: "none",
+              }}
+            />
+
+            <small
+              style={{
+                display: "block",
+                marginTop: "5px",
+                color: "#64748b",
+                fontSize: "11px",
+              }}
+            >
+              Google Drive, OneDrive, Dropbox,
+              ZIP hosting, or another accessible
+              file link.
+            </small>
+          </div>
+
+          {/* DELIVERY MESSAGE */}
+
+          <div
+            style={{
+              marginBottom: "12px",
+            }}
+          >
+            <label
+              style={{
+                display: "block",
+                fontSize: "12px",
+                fontWeight: 700,
+                color: "#334155",
+                marginBottom: "6px",
+              }}
+            >
+              Delivery Message
+            </label>
+
+            <textarea
+              value={
+                deliveryNotes[
+                  order.id
+                ] || ""
+              }
+              onChange={(event) =>
+                setDeliveryNotes(
+                  (current) => ({
+                    ...current,
+                    [order.id]:
+                      event.target.value,
+                  })
+                )
+              }
+              placeholder="Write a message for the buyer. Example: The project is completed and all files are included in the delivery link."
+              rows={4}
+              style={{
+                width: "100%",
+                boxSizing: "border-box",
+                padding: "12px",
+                border:
+                  "1px solid #cbd5e1",
+                borderRadius: "10px",
+                resize: "vertical",
+                fontFamily: "inherit",
+                fontSize: "14px",
+                outline: "none",
+              }}
+            />
+          </div>
+
+          <button
+            type="button"
+            className="dashboard-primary-button"
+            disabled={isActionRunning}
+            onClick={() =>
+              handleSubmitWork(order.id)
+            }
+          >
+            {isActionRunning
+              ? "Delivering..."
+              : isRevision
+              ? "Resubmit Work →"
+              : "Deliver Work →"}
+          </button>
+        </div>
+      );
+    }
+
+    if (order.status === "Submitted") {
+      return (
+        <div
+          style={{
+            marginTop: "18px",
+            padding: "15px 16px",
+            borderRadius: "14px",
+            background: "#fffbeb",
+            border: "1px solid #fde68a",
+          }}
+        >
+          <strong
+            style={{
+              display: "block",
+              color: "#92400e",
+              fontSize: "14px",
+              marginBottom: "5px",
+            }}
+          >
+            ✓ Project delivered
+          </strong>
+
+          <span
+            style={{
+              color: "#64748b",
+              fontSize: "13px",
+              lineHeight: 1.5,
+            }}
+          >
+            Your completed project has been
+            delivered to the buyer. Wait for
+            the buyer's review.
+          </span>
+        </div>
+      );
+    }
+
+    if (order.status === "Buyer Review") {
+      return (
+        <div
+          style={{
+            marginTop: "18px",
+            padding: "15px 16px",
+            borderRadius: "14px",
+            background: "#f5f3ff",
+            border: "1px solid #ddd6fe",
+          }}
+        >
+          <strong
+            style={{
+              display: "block",
+              color: "#6d28d9",
+              fontSize: "14px",
+              marginBottom: "5px",
+            }}
+          >
+            Buyer is reviewing your work
+          </strong>
+
+          <span
+            style={{
+              color: "#64748b",
+              fontSize: "13px",
+              lineHeight: 1.5,
+            }}
+          >
+            The buyer is reviewing the
+            submitted project. No action is
+            required from you right now.
+          </span>
+        </div>
+      );
+    }
+
+    if (order.status === "Completed") {
+      return (
+        <div
+          style={{
+            marginTop: "18px",
+            padding: "15px 16px",
+            borderRadius: "14px",
+            background: "#f0fdf4",
+            border: "1px solid #bbf7d0",
+          }}
+        >
+          <strong
+            style={{
+              display: "block",
+              color: "#166534",
+              fontSize: "14px",
+              marginBottom: "5px",
+            }}
+          >
+            ✓ Order completed
+          </strong>
+
+          <span
+            style={{
+              color: "#475569",
+              fontSize: "13px",
+              lineHeight: 1.5,
+            }}
+          >
+            The buyer has completed the
+            order. Your seller payout is now
+            ready for ProjectHub admin release.
+          </span>
+        </div>
+      );
+    }
+
+    if (order.status === "Payment Released") {
+      return (
+        <div
+          style={{
+            marginTop: "18px",
+            padding: "15px 16px",
+            borderRadius: "14px",
+            background: "#f0fdf4",
+            border: "1px solid #86efac",
+          }}
+        >
+          <strong
+            style={{
+              display: "block",
+              color: "#166534",
+              fontSize: "14px",
+              marginBottom: "5px",
+            }}
+          >
+            ✓ Payment released
+          </strong>
+
+          <span
+            style={{
+              color: "#475569",
+              fontSize: "13px",
+              lineHeight: 1.5,
+            }}
+          >
+            ProjectHub has released your
+            seller payout of{" "}
+            <strong>
+              ৳
+              {Number(
+                order.sellerAmount
+              ).toLocaleString()}
+            </strong>
+            .
+          </span>
+        </div>
+      );
+    }
+
+    if (order.status === "Cancelled") {
+      return (
+        <div
+          style={{
+            marginTop: "18px",
+            padding: "15px 16px",
+            borderRadius: "14px",
+            background: "#fef2f2",
+            border: "1px solid #fecaca",
+          }}
+        >
+          <strong
+            style={{
+              display: "block",
+              color: "#991b1b",
+              fontSize: "14px",
+              marginBottom: "5px",
+            }}
+          >
+            Order cancelled
+          </strong>
+
+          <span
+            style={{
+              color: "#64748b",
+              fontSize: "13px",
+            }}
+          >
+            This order is no longer active.
+          </span>
+        </div>
+      );
+    }
+
+    return null;
+  };
+
+  // ==========================================
+  // LOADING SCREEN
+  // ==========================================
 
   if (isLoading) {
     return (
@@ -946,6 +1809,10 @@ function Dashboard() {
 
   return (
     <main className="dashboard-page">
+
+      {/* ======================================
+          SIDEBAR
+      ====================================== */}
 
       <aside className="dashboard-sidebar">
 
@@ -1086,7 +1953,13 @@ function Dashboard() {
 
       </aside>
 
+      {/* ======================================
+          MAIN DASHBOARD
+      ====================================== */}
+
       <section className="dashboard-main">
+
+        {/* TOPBAR */}
 
         <header className="dashboard-topbar">
 
@@ -1154,6 +2027,8 @@ function Dashboard() {
 
         <div className="dashboard-content">
 
+          {/* WELCOME */}
+
           <section className="dashboard-welcome">
 
             <div>
@@ -1193,6 +2068,8 @@ function Dashboard() {
             </div>
 
           </section>
+
+          {/* STATS */}
 
           <section className="dashboard-stats">
 
@@ -1294,6 +2171,264 @@ function Dashboard() {
 
           </section>
 
+          {/* SELLER ORDER SNAPSHOT */}
+
+          {isSeller && (
+            <section
+              className="dashboard-section"
+              style={{
+                marginTop: "24px",
+              }}
+            >
+
+              <div className="section-heading">
+
+                <div>
+
+                  <span>
+                    ORDER PIPELINE
+                  </span>
+
+                  <h2>
+                    Seller workflow
+                  </h2>
+
+                </div>
+
+                <button
+                  type="button"
+                  onClick={scrollToOrders}
+                  style={{
+                    border: "none",
+                    background:
+                      "transparent",
+                    color:
+                      "#7c3aed",
+                    fontWeight: 700,
+                    cursor: "pointer",
+                  }}
+                >
+                  Manage orders →
+                </button>
+
+              </div>
+
+              <div
+                style={{
+                  display:
+                    "grid",
+                  gridTemplateColumns:
+                    "repeat(auto-fit, minmax(170px, 1fr))",
+                  gap:
+                    "14px",
+                }}
+              >
+
+                <div
+                  style={{
+                    padding:
+                      "18px",
+                    border:
+                      "1px solid #dbeafe",
+                    borderRadius:
+                      "16px",
+                    background:
+                      "#eff6ff",
+                  }}
+                >
+                  <span
+                    style={{
+                      display:
+                        "block",
+                      color:
+                        "#64748b",
+                      fontSize:
+                        "12px",
+                      marginBottom:
+                        "6px",
+                    }}
+                  >
+                    READY TO START
+                  </span>
+
+                  <strong
+                    style={{
+                      display:
+                        "block",
+                      color:
+                        "#1d4ed8",
+                      fontSize:
+                        "25px",
+                    }}
+                  >
+                    {sellerWaitingOrders}
+                  </strong>
+
+                  <small
+                    style={{
+                      color:
+                        "#475569",
+                    }}
+                  >
+                    Payment held
+                  </small>
+                </div>
+
+                <div
+                  style={{
+                    padding:
+                      "18px",
+                    border:
+                      "1px solid #c7d2fe",
+                    borderRadius:
+                      "16px",
+                    background:
+                      "#eef2ff",
+                  }}
+                >
+                  <span
+                    style={{
+                      display:
+                        "block",
+                      color:
+                        "#64748b",
+                      fontSize:
+                        "12px",
+                      marginBottom:
+                        "6px",
+                    }}
+                  >
+                    WORKING
+                  </span>
+
+                  <strong
+                    style={{
+                      display:
+                        "block",
+                      color:
+                        "#4338ca",
+                      fontSize:
+                        "25px",
+                    }}
+                  >
+                    {sellerWorkingOrders}
+                  </strong>
+
+                  <small
+                    style={{
+                      color:
+                        "#475569",
+                    }}
+                  >
+                    In progress
+                  </small>
+                </div>
+
+                <div
+                  style={{
+                    padding:
+                      "18px",
+                    border:
+                      "1px solid #fde68a",
+                    borderRadius:
+                      "16px",
+                    background:
+                      "#fffbeb",
+                  }}
+                >
+                  <span
+                    style={{
+                      display:
+                        "block",
+                      color:
+                        "#64748b",
+                      fontSize:
+                        "12px",
+                      marginBottom:
+                        "6px",
+                    }}
+                  >
+                    REVIEW
+                  </span>
+
+                  <strong
+                    style={{
+                      display:
+                        "block",
+                      color:
+                        "#92400e",
+                      fontSize:
+                        "25px",
+                    }}
+                  >
+                    {sellerSubmittedOrders}
+                  </strong>
+
+                  <small
+                    style={{
+                      color:
+                        "#475569",
+                    }}
+                  >
+                    With buyer
+                  </small>
+                </div>
+
+                <div
+                  style={{
+                    padding:
+                      "18px",
+                    border:
+                      "1px solid #bbf7d0",
+                    borderRadius:
+                      "16px",
+                    background:
+                      "#f0fdf4",
+                  }}
+                >
+                  <span
+                    style={{
+                      display:
+                        "block",
+                      color:
+                        "#64748b",
+                      fontSize:
+                        "12px",
+                      marginBottom:
+                        "6px",
+                    }}
+                  >
+                    COMPLETED
+                  </span>
+
+                  <strong
+                    style={{
+                      display:
+                        "block",
+                      color:
+                        "#166534",
+                      fontSize:
+                        "25px",
+                    }}
+                  >
+                    {sellerCompletedOrders}
+                  </strong>
+
+                  <small
+                    style={{
+                      color:
+                        "#475569",
+                    }}
+                  >
+                    Finished orders
+                  </small>
+                </div>
+
+              </div>
+
+            </section>
+          )}
+
           {/* ORDERS */}
 
           <section
@@ -1382,6 +2517,7 @@ function Dashboard() {
 
               </div>
             ) : isSeller ? (
+
               sellerOrders.length === 0 ? (
                 <div className="activity-card">
 
@@ -1414,8 +2550,10 @@ function Dashboard() {
               ) : (
                 <div
                   style={{
-                    display: "grid",
-                    gap: "16px",
+                    display:
+                      "grid",
+                    gap:
+                      "16px",
                   }}
                 >
 
@@ -1440,6 +2578,8 @@ function Dashboard() {
                               "#ffffff",
                           }}
                         >
+
+                          {/* ORDER HEADER */}
 
                           <div
                             style={{
@@ -1534,6 +2674,8 @@ function Dashboard() {
                             </span>
 
                           </div>
+
+                          {/* ORDER DETAILS */}
 
                           <div
                             style={{
@@ -1632,6 +2774,40 @@ function Dashboard() {
                                     "4px",
                                 }}
                               >
+                                Expected Delivery
+                              </span>
+
+                              <strong
+                                style={{
+                                  color:
+                                    "#334155",
+                                  fontSize:
+                                    "14px",
+                                }}
+                              >
+                                {order.expectedDeliveryDate
+                                  ? new Date(
+                                      order.expectedDeliveryDate
+                                    ).toLocaleDateString()
+                                  : "Not specified"}
+                              </strong>
+
+                            </div>
+
+                            <div>
+
+                              <span
+                                style={{
+                                  display:
+                                    "block",
+                                  color:
+                                    "#64748b",
+                                  fontSize:
+                                    "12px",
+                                  marginBottom:
+                                    "4px",
+                                }}
+                              >
                                 Order Date
                               </span>
 
@@ -1651,6 +2827,8 @@ function Dashboard() {
                             </div>
 
                           </div>
+
+                          {/* BUYER MESSAGE */}
 
                           {order.buyerMessage && (
                             <div
@@ -1678,7 +2856,11 @@ function Dashboard() {
                             </div>
                           )}
 
-                          {order.deliveryNote && (
+                          {/* REVISION NOTE */}
+
+                          {order.revisionNote &&
+                            order.status ===
+                              "Revision Requested" && (
                             <div
                               style={{
                                 marginTop:
@@ -1688,7 +2870,39 @@ function Dashboard() {
                                 borderRadius:
                                   "12px",
                                 background:
+                                  "#fff7ed",
+                                border:
+                                  "1px solid #fed7aa",
+                                color:
+                                  "#9a3412",
+                                fontSize:
+                                  "13px",
+                                lineHeight:
+                                  1.6,
+                              }}
+                            >
+                              <strong>
+                                Buyer revision request:
+                              </strong>{" "}
+                              {order.revisionNote}
+                            </div>
+                          )}
+
+                          {/* DELIVERY INFO */}
+
+                          {order.deliveryNote && (
+                            <div
+                              style={{
+                                marginTop:
+                                  "12px",
+                                padding:
+                                  "15px",
+                                borderRadius:
+                                  "12px",
+                                background:
                                   "#f0fdf4",
+                                border:
+                                  "1px solid #bbf7d0",
                                 color:
                                   "#166534",
                                 fontSize:
@@ -1697,149 +2911,87 @@ function Dashboard() {
                                   1.6,
                               }}
                             >
-                              <strong>
-                                Delivery note:
-                              </strong>{" "}
-                              {order.deliveryNote}
-                            </div>
-                          )}
-
-                          {order.status ===
-                            "Payment Held" && (
-                            <div
-                              style={{
-                                marginTop:
-                                  "18px",
-                              }}
-                            >
-
-                              <button
-                                type="button"
-                                className="dashboard-primary-button"
-                                disabled={
-                                  actionOrderId ===
-                                  order.id
-                                }
-                                onClick={() =>
-                                  handleStartWork(
-                                    order.id
-                                  )
-                                }
-                              >
-                                {actionOrderId ===
-                                order.id
-                                  ? "Starting..."
-                                  : "Start Work →"}
-                              </button>
-
-                            </div>
-                          )}
-
-                          {order.status ===
-                            "Seller Working" && (
-                            <div
-                              style={{
-                                marginTop:
-                                  "18px",
-                                display:
-                                  "grid",
-                                gap:
-                                  "10px",
-                              }}
-                            >
-
-                              <textarea
-                                value={
-                                  deliveryNotes[
-                                    order.id
-                                  ] || ""
-                                }
-                                onChange={(
-                                  event
-                                ) =>
-                                  setDeliveryNotes(
-                                    (
-                                      current
-                                    ) => ({
-                                      ...current,
-                                      [order.id]:
-                                        event
-                                          .target
-                                          .value,
-                                    })
-                                  )
-                                }
-                                placeholder="Write a delivery note..."
-                                rows={3}
+                              <strong
                                 style={{
-                                  width:
-                                    "100%",
-                                  boxSizing:
-                                    "border-box",
-                                  padding:
-                                    "12px",
-                                  border:
-                                    "1px solid #e2e8f0",
-                                  borderRadius:
-                                    "10px",
-                                  resize:
-                                    "vertical",
-                                  fontFamily:
-                                    "inherit",
-                                  fontSize:
-                                    "14px",
-                                  outline:
-                                    "none",
+                                  display:
+                                    "block",
+                                  marginBottom:
+                                    "8px",
                                 }}
-                              />
-
-                              <button
-                                type="button"
-                                className="dashboard-primary-button"
-                                disabled={
-                                  actionOrderId ===
-                                  order.id
-                                }
-                                onClick={() =>
-                                  handleSubmitWork(
-                                    order.id
-                                  )
-                                }
                               >
-                                {actionOrderId ===
-                                order.id
-                                  ? "Submitting..."
-                                  : "Submit Work →"}
-                              </button>
+                                Project Delivery
+                              </strong>
+
+                              <div>
+                                <strong>
+                                  Message:
+                                </strong>{" "}
+                                {order.deliveryNote}
+                              </div>
+
+                              {order.githubLink && (
+                                <div
+                                  style={{
+                                    marginTop:
+                                      "7px",
+                                  }}
+                                >
+                                  <strong>
+                                    GitHub:
+                                  </strong>{" "}
+                                  <a
+                                    href={
+                                      order.githubLink
+                                    }
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    style={{
+                                      color:
+                                        "#2563eb",
+                                      fontWeight:
+                                        700,
+                                    }}
+                                  >
+                                    Open Repository →
+                                  </a>
+                                </div>
+                              )}
+
+                              {order.deliveryLink && (
+                                <div
+                                  style={{
+                                    marginTop:
+                                      "7px",
+                                  }}
+                                >
+                                  <strong>
+                                    Delivery:
+                                  </strong>{" "}
+                                  <a
+                                    href={
+                                      order.deliveryLink
+                                    }
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    style={{
+                                      color:
+                                        "#2563eb",
+                                      fontWeight:
+                                        700,
+                                    }}
+                                  >
+                                    Open Delivery Files →
+                                  </a>
+                                </div>
+                              )}
 
                             </div>
                           )}
 
-                          {order.status ===
-                            "Completed" && (
-                            <div
-                              style={{
-                                marginTop:
-                                  "18px",
-                                padding:
-                                  "12px 15px",
-                                borderRadius:
-                                  "10px",
-                                background:
-                                  "#f0fdf4",
-                                color:
-                                  "#166534",
-                                fontSize:
-                                  "13px",
-                                fontWeight:
-                                  600,
-                              }}
-                            >
-                              ✓ Order completed.
-                              ProjectHub will handle
-                              the seller payout
-                              release.
-                            </div>
+                          {/* SELLER ACTION */}
+
+                          {renderSellerOrderAction(
+                            order
                           )}
 
                         </div>
@@ -1849,7 +3001,13 @@ function Dashboard() {
 
                 </div>
               )
+
             ) : (
+
+              /* =================================
+                 BUYER ORDERS
+              ================================= */
+
               buyerOrders.length === 0 ? (
                 <div className="activity-card">
 
@@ -1882,8 +3040,10 @@ function Dashboard() {
               ) : (
                 <div
                   style={{
-                    display: "grid",
-                    gap: "16px",
+                    display:
+                      "grid",
+                    gap:
+                      "16px",
                   }}
                 >
 
@@ -1893,6 +3053,11 @@ function Dashboard() {
                         getStatusStyle(
                           order.status
                         );
+
+                      const isRevisionFormOpen =
+                        revisionOpen[
+                          order.id
+                        ] === true;
 
                       return (
                         <div
@@ -1908,6 +3073,8 @@ function Dashboard() {
                               "#ffffff",
                           }}
                         >
+
+                          {/* ORDER HEADER */}
 
                           <div
                             style={{
@@ -2003,6 +3170,8 @@ function Dashboard() {
 
                           </div>
 
+                          {/* ORDER DETAILS */}
+
                           <div
                             style={{
                               display:
@@ -2087,6 +3256,8 @@ function Dashboard() {
 
                           </div>
 
+                          {/* BUYER MESSAGE */}
+
                           {order.buyerMessage && (
                             <div
                               style={{
@@ -2113,19 +3284,24 @@ function Dashboard() {
                             </div>
                           )}
 
-                          {order.deliveryNote && (
+                          {/* REVISION REQUEST STATUS */}
+
+                          {order.status ===
+                            "Revision Requested" && (
                             <div
                               style={{
                                 marginTop:
-                                  "12px",
+                                  "16px",
                                 padding:
-                                  "13px 15px",
+                                  "14px 15px",
                                 borderRadius:
                                   "12px",
                                 background:
-                                  "#f0fdf4",
+                                  "#fff7ed",
+                                border:
+                                  "1px solid #fed7aa",
                                 color:
-                                  "#166534",
+                                  "#9a3412",
                                 fontSize:
                                   "13px",
                                 lineHeight:
@@ -2133,48 +3309,382 @@ function Dashboard() {
                               }}
                             >
                               <strong>
-                                Seller delivery:
-                              </strong>{" "}
-                              {order.deliveryNote}
+                                Revision requested
+                              </strong>
+
+                              <div
+                                style={{
+                                  marginTop:
+                                    "5px",
+                                }}
+                              >
+                                The seller has been
+                                asked to update the
+                                project.
+                              </div>
                             </div>
                           )}
+
+                          {/* PROJECT DELIVERED */}
+
+                          {order.deliveryNote &&
+                            (order.status ===
+                              "Submitted" ||
+                              order.status ===
+                                "Buyer Review" ||
+                              order.status ===
+                                "Completed" ||
+                              order.status ===
+                                "Payment Released") && (
+                            <div
+                              style={{
+                                marginTop:
+                                  "18px",
+                                padding:
+                                  "17px",
+                                borderRadius:
+                                  "14px",
+                                background:
+                                  "#f0fdf4",
+                                border:
+                                  "1px solid #bbf7d0",
+                              }}
+                            >
+
+                              <div
+                                style={{
+                                  display:
+                                    "flex",
+                                  alignItems:
+                                    "center",
+                                  gap:
+                                    "9px",
+                                  marginBottom:
+                                    "10px",
+                                }}
+                              >
+                                <span
+                                  style={{
+                                    fontSize:
+                                      "20px",
+                                  }}
+                                >
+                                  📦
+                                </span>
+
+                                <strong
+                                  style={{
+                                    color:
+                                      "#166534",
+                                    fontSize:
+                                      "16px",
+                                  }}
+                                >
+                                  Project Delivered
+                                </strong>
+
+                              </div>
+
+                              <p
+                                style={{
+                                  margin:
+                                    "0 0 12px",
+                                  color:
+                                    "#475569",
+                                  fontSize:
+                                    "13px",
+                                  lineHeight:
+                                    1.6,
+                                }}
+                              >
+                                The seller has
+                                delivered the
+                                completed project.
+                              </p>
+
+                              <div
+                                style={{
+                                  padding:
+                                    "12px 14px",
+                                  borderRadius:
+                                    "10px",
+                                  background:
+                                    "#ffffff",
+                                  color:
+                                    "#475569",
+                                  fontSize:
+                                    "13px",
+                                  lineHeight:
+                                    1.6,
+                                  marginBottom:
+                                    "12px",
+                                }}
+                              >
+                                <strong>
+                                  Delivery Message
+                                </strong>
+
+                                <div
+                                  style={{
+                                    marginTop:
+                                      "5px",
+                                  }}
+                                >
+                                  {
+                                    order.deliveryNote
+                                  }
+                                </div>
+                              </div>
+
+                              <div
+                                style={{
+                                  display:
+                                    "flex",
+                                  flexWrap:
+                                    "wrap",
+                                  gap:
+                                    "10px",
+                                }}
+                              >
+
+                                {order.githubLink && (
+                                  <a
+                                    href={
+                                      order.githubLink
+                                    }
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="dashboard-secondary-button"
+                                    style={{
+                                      textDecoration:
+                                        "none",
+                                    }}
+                                  >
+                                    GitHub Repository →
+                                  </a>
+                                )}
+
+                                {order.deliveryLink && (
+                                  <a
+                                    href={
+                                      order.deliveryLink
+                                    }
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="dashboard-primary-button"
+                                    style={{
+                                      textDecoration:
+                                        "none",
+                                    }}
+                                  >
+                                    Open Delivery Files →
+                                  </a>
+                                )}
+
+                              </div>
+
+                              <div
+                                style={{
+                                  marginTop:
+                                    "12px",
+                                  color:
+                                    "#64748b",
+                                  fontSize:
+                                    "11px",
+                                }}
+                              >
+                                Delivered:{" "}
+                                {new Date(
+                                  order.updatedAt
+                                ).toLocaleString()}
+                              </div>
+
+                            </div>
+                          )}
+
+                          {/* BUYER REVIEW */}
 
                           {order.status ===
                             "Submitted" && (
                             <div
                               style={{
-                                display:
-                                  "flex",
-                                gap:
-                                  "10px",
                                 marginTop:
                                   "18px",
-                                flexWrap:
-                                  "wrap",
+                                padding:
+                                  "15px 16px",
+                                borderRadius:
+                                  "14px",
+                                background:
+                                  "#fffbeb",
+                                border:
+                                  "1px solid #fde68a",
                               }}
                             >
 
-                              <button
-                                type="button"
-                                className="dashboard-secondary-button"
-                                disabled={
-                                  actionOrderId ===
-                                  order.id
-                                }
-                                onClick={() =>
-                                  handleReviewWork(
-                                    order.id
-                                  )
-                                }
+                              <strong
+                                style={{
+                                  display:
+                                    "block",
+                                  color:
+                                    "#92400e",
+                                  fontSize:
+                                    "14px",
+                                  marginBottom:
+                                    "6px",
+                                }}
                               >
-                                {actionOrderId ===
-                                order.id
-                                  ? "Processing..."
-                                  : "Review Work"}
-                              </button>
+                                Review the delivered work
+                              </strong>
+
+                              <p
+                                style={{
+                                  margin:
+                                    "0 0 12px",
+                                  color:
+                                    "#64748b",
+                                  fontSize:
+                                    "13px",
+                                  lineHeight:
+                                    1.5,
+                                }}
+                              >
+                                Check both the GitHub
+                                repository and delivery
+                                files. If changes are
+                                needed, request a revision.
+                              </p>
+
+                              <div
+                                style={{
+                                  display:
+                                    "flex",
+                                  flexWrap:
+                                    "wrap",
+                                  gap:
+                                    "10px",
+                                }}
+                              >
+
+                                <button
+                                  type="button"
+                                  className="dashboard-secondary-button"
+                                  onClick={() =>
+                                    setRevisionOpen(
+                                      (current) => ({
+                                        ...current,
+                                        [order.id]:
+                                          !current[
+                                            order.id
+                                          ],
+                                      })
+                                    )
+                                  }
+                                >
+                                  {isRevisionFormOpen
+                                    ? "Cancel Revision"
+                                    : "Request Revision"}
+                                </button>
+
+                                <button
+                                  type="button"
+                                  className="dashboard-primary-button"
+                                  disabled={
+                                    actionOrderId ===
+                                    order.id
+                                  }
+                                  onClick={() =>
+                                    handleReviewWork(
+                                      order.id
+                                    )
+                                  }
+                                >
+                                  {actionOrderId ===
+                                  order.id
+                                    ? "Processing..."
+                                    : "Review Work →"}
+                                </button>
+
+                              </div>
+
+                              {isRevisionFormOpen && (
+                                <div
+                                  style={{
+                                    marginTop:
+                                      "14px",
+                                  }}
+                                >
+
+                                  <textarea
+                                    value={
+                                      revisionNotes[
+                                        order.id
+                                      ] || ""
+                                    }
+                                    onChange={(
+                                      event
+                                    ) =>
+                                      setRevisionNotes(
+                                        (current) => ({
+                                          ...current,
+                                          [order.id]:
+                                            event
+                                              .target
+                                              .value,
+                                        })
+                                      )
+                                    }
+                                    placeholder="Tell the seller what needs to be changed..."
+                                    rows={4}
+                                    style={{
+                                      width:
+                                        "100%",
+                                      boxSizing:
+                                        "border-box",
+                                      padding:
+                                        "12px",
+                                      border:
+                                        "1px solid #cbd5e1",
+                                      borderRadius:
+                                        "10px",
+                                      resize:
+                                        "vertical",
+                                      fontFamily:
+                                        "inherit",
+                                      fontSize:
+                                        "14px",
+                                      outline:
+                                        "none",
+                                      marginBottom:
+                                        "10px",
+                                    }}
+                                  />
+
+                                  <button
+                                    type="button"
+                                    className="dashboard-primary-button"
+                                    disabled={
+                                      actionOrderId ===
+                                      order.id
+                                    }
+                                    onClick={() =>
+                                      handleRequestRevision(
+                                        order.id
+                                      )
+                                    }
+                                  >
+                                    {actionOrderId ===
+                                    order.id
+                                      ? "Sending..."
+                                      : "Send Revision Request →"}
+                                  </button>
+
+                                </div>
+                              )}
 
                             </div>
                           )}
+
+                          {/* BUYER REVIEW */}
 
                           {order.status ===
                             "Buyer Review" && (
@@ -2182,30 +3692,182 @@ function Dashboard() {
                               style={{
                                 marginTop:
                                   "18px",
+                                padding:
+                                  "15px 16px",
+                                borderRadius:
+                                  "14px",
+                                background:
+                                  "#f5f3ff",
+                                border:
+                                  "1px solid #ddd6fe",
                               }}
                             >
 
-                              <button
-                                type="button"
-                                className="dashboard-primary-button"
-                                disabled={
-                                  actionOrderId ===
-                                  order.id
-                                }
-                                onClick={() =>
-                                  handleCompleteOrder(
-                                    order.id
-                                  )
-                                }
+                              <strong
+                                style={{
+                                  display:
+                                    "block",
+                                  color:
+                                    "#6d28d9",
+                                  fontSize:
+                                    "14px",
+                                  marginBottom:
+                                    "6px",
+                                }}
                               >
-                                {actionOrderId ===
-                                order.id
-                                  ? "Completing..."
-                                  : "Complete Order ✓"}
-                              </button>
+                                Final review
+                              </strong>
+
+                              <p
+                                style={{
+                                  margin:
+                                    "0 0 12px",
+                                  color:
+                                    "#64748b",
+                                  fontSize:
+                                    "13px",
+                                  lineHeight:
+                                    1.5,
+                                }}
+                              >
+                                If everything is
+                                correct, complete
+                                the order. The seller
+                                payout will then become
+                                ready for admin release.
+                              </p>
+
+                              <div
+                                style={{
+                                  display:
+                                    "flex",
+                                  flexWrap:
+                                    "wrap",
+                                  gap:
+                                    "10px",
+                                }}
+                              >
+
+                                <button
+                                  type="button"
+                                  className="dashboard-secondary-button"
+                                  onClick={() =>
+                                    setRevisionOpen(
+                                      (current) => ({
+                                        ...current,
+                                        [order.id]:
+                                          !current[
+                                            order.id
+                                          ],
+                                      })
+                                    )
+                                  }
+                                >
+                                  {isRevisionFormOpen
+                                    ? "Cancel Revision"
+                                    : "Request Revision"}
+                                </button>
+
+                                <button
+                                  type="button"
+                                  className="dashboard-primary-button"
+                                  disabled={
+                                    actionOrderId ===
+                                    order.id
+                                  }
+                                  onClick={() =>
+                                    handleCompleteOrder(
+                                      order.id
+                                    )
+                                  }
+                                >
+                                  {actionOrderId ===
+                                  order.id
+                                    ? "Completing..."
+                                    : "Complete Order ✓"}
+                                </button>
+
+                              </div>
+
+                              {isRevisionFormOpen && (
+                                <div
+                                  style={{
+                                    marginTop:
+                                      "14px",
+                                  }}
+                                >
+
+                                  <textarea
+                                    value={
+                                      revisionNotes[
+                                        order.id
+                                      ] || ""
+                                    }
+                                    onChange={(
+                                      event
+                                    ) =>
+                                      setRevisionNotes(
+                                        (current) => ({
+                                          ...current,
+                                          [order.id]:
+                                            event
+                                              .target
+                                              .value,
+                                        })
+                                      )
+                                    }
+                                    placeholder="Tell the seller what needs to be changed..."
+                                    rows={4}
+                                    style={{
+                                      width:
+                                        "100%",
+                                      boxSizing:
+                                        "border-box",
+                                      padding:
+                                        "12px",
+                                      border:
+                                        "1px solid #cbd5e1",
+                                      borderRadius:
+                                        "10px",
+                                      resize:
+                                        "vertical",
+                                      fontFamily:
+                                        "inherit",
+                                      fontSize:
+                                        "14px",
+                                      outline:
+                                        "none",
+                                      marginBottom:
+                                        "10px",
+                                    }}
+                                  />
+
+                                  <button
+                                    type="button"
+                                    className="dashboard-primary-button"
+                                    disabled={
+                                      actionOrderId ===
+                                      order.id
+                                    }
+                                    onClick={() =>
+                                      handleRequestRevision(
+                                        order.id
+                                      )
+                                    }
+                                  >
+                                    {actionOrderId ===
+                                    order.id
+                                      ? "Sending..."
+                                      : "Send Revision Request →"}
+                                  </button>
+
+                                </div>
+                              )}
 
                             </div>
                           )}
+
+                          {/* COMPLETED */}
 
                           {order.status ===
                             "Completed" && (
@@ -2214,23 +3876,98 @@ function Dashboard() {
                                 marginTop:
                                   "18px",
                                 padding:
-                                  "12px 15px",
+                                  "15px 16px",
                                 borderRadius:
-                                  "10px",
+                                  "14px",
                                 background:
                                   "#f0fdf4",
-                                color:
-                                  "#166534",
-                                fontSize:
-                                  "13px",
-                                fontWeight:
-                                  600,
+                                border:
+                                  "1px solid #bbf7d0",
                               }}
                             >
-                              ✓ Order completed.
-                              The seller payout is now
-                              ready for ProjectHub
-                              admin release.
+
+                              <strong
+                                style={{
+                                  display:
+                                    "block",
+                                  color:
+                                    "#166534",
+                                  fontSize:
+                                    "14px",
+                                  marginBottom:
+                                    "5px",
+                                }}
+                              >
+                                ✓ Order completed
+                              </strong>
+
+                              <span
+                                style={{
+                                  color:
+                                    "#475569",
+                                  fontSize:
+                                    "13px",
+                                  lineHeight:
+                                    1.5,
+                                }}
+                              >
+                                The seller payout is
+                                now ready for ProjectHub
+                                admin release.
+                              </span>
+
+                            </div>
+                          )}
+
+                          {/* PAYMENT RELEASED */}
+
+                          {order.status ===
+                            "Payment Released" && (
+                            <div
+                              style={{
+                                marginTop:
+                                  "18px",
+                                padding:
+                                  "15px 16px",
+                                borderRadius:
+                                  "14px",
+                                background:
+                                  "#f0fdf4",
+                                border:
+                                  "1px solid #86efac",
+                              }}
+                            >
+
+                              <strong
+                                style={{
+                                  display:
+                                    "block",
+                                  color:
+                                    "#166534",
+                                  fontSize:
+                                    "14px",
+                                  marginBottom:
+                                    "5px",
+                                }}
+                              >
+                                ✓ Transaction completed
+                              </strong>
+
+                              <span
+                                style={{
+                                  color:
+                                    "#475569",
+                                  fontSize:
+                                    "13px",
+                                  lineHeight:
+                                    1.5,
+                                }}
+                              >
+                                ProjectHub has released
+                                the seller payment and
+                                completed this order.
+                              </span>
+
                             </div>
                           )}
 
@@ -2888,10 +4625,13 @@ function Dashboard() {
                 onClick={scrollToOrders}
                 style={{
                   border: "none",
-                  background: "transparent",
-                  color: "#7c3aed",
+                  background:
+                    "transparent",
+                  color:
+                    "#7c3aed",
                   fontWeight: 700,
-                  cursor: "pointer",
+                  cursor:
+                    "pointer",
                 }}
               >
                 View orders
