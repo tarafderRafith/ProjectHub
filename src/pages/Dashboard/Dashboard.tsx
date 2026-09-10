@@ -34,6 +34,39 @@ interface SellerProject {
   updatedAt: string;
 }
 
+interface BuyerOrder {
+  id: number;
+  projectId: number;
+  projectTitle: string;
+  sellerId: number;
+  sellerName: string;
+  sellerUsername: string;
+  projectPrice: number;
+  status: string;
+  buyerMessage: string | null;
+  deliveryNote?: string | null;
+  expectedDeliveryDate?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface SellerOrder {
+  id: number;
+  projectId: number;
+  projectTitle: string;
+  buyerId: number;
+  buyerName: string;
+  buyerUsername: string;
+  projectPrice: number;
+  sellerAmount: number;
+  status: string;
+  buyerMessage: string | null;
+  deliveryNote: string | null;
+  expectedDeliveryDate: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 function Dashboard() {
   const navigate = useNavigate();
 
@@ -46,10 +79,22 @@ function Dashboard() {
   const [sellerProjects, setSellerProjects] =
     useState<SellerProject[]>([]);
 
+  const [buyerOrders, setBuyerOrders] =
+    useState<BuyerOrder[]>([]);
+
+  const [sellerOrders, setSellerOrders] =
+    useState<SellerOrder[]>([]);
+
   const [projectsLoading, setProjectsLoading] =
     useState(false);
 
+  const [ordersLoading, setOrdersLoading] =
+    useState(false);
+
   const [projectsError, setProjectsError] =
+    useState("");
+
+  const [ordersError, setOrdersError] =
     useState("");
 
   const [isLoading, setIsLoading] =
@@ -61,85 +106,190 @@ function Dashboard() {
   const [deletingProjectId, setDeletingProjectId] =
     useState<number | null>(null);
 
+  const [actionOrderId, setActionOrderId] =
+    useState<number | null>(null);
+
+  const [deliveryNotes, setDeliveryNotes] =
+    useState<Record<number, string>>({});
+
+  const getToken = () => {
+    return (
+      localStorage.getItem("projecthub_token") ||
+      sessionStorage.getItem("projecthub_token")
+    );
+  };
+
+  const getApiResult = async (
+    response: Response
+  ): Promise<any> => {
+    try {
+      return await response.json();
+    } catch {
+      return {};
+    }
+  };
+
+  const loadSellerProjects = async () => {
+    const token = getToken();
+
+    if (!token) {
+      return;
+    }
+
+    try {
+      setProjectsLoading(true);
+      setProjectsError("");
+
+      const response = await fetch(
+        "http://localhost:5038/api/seller/projects",
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: "application/json",
+          },
+        }
+      );
+
+      const result = await getApiResult(response);
+
+      if (!response.ok) {
+        throw new Error(
+          result?.message ||
+            "Unable to load your projects."
+        );
+      }
+
+      if (Array.isArray(result)) {
+        setSellerProjects(result);
+      } else {
+        setSellerProjects([]);
+      }
+    } catch (error) {
+      console.error(
+        "Failed to load seller projects:",
+        error
+      );
+
+      setProjectsError(
+        error instanceof Error
+          ? error.message
+          : "Unable to load your projects."
+      );
+    } finally {
+      setProjectsLoading(false);
+    }
+  };
+
+  const loadBuyerOrders = async () => {
+    const token = getToken();
+
+    if (!token) {
+      return;
+    }
+
+    try {
+      setOrdersLoading(true);
+      setOrdersError("");
+
+      const response = await fetch(
+        "http://localhost:5038/api/orders/my-orders",
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: "application/json",
+          },
+        }
+      );
+
+      const result = await getApiResult(response);
+
+      if (!response.ok) {
+        throw new Error(
+          result?.message ||
+            "Unable to load your orders."
+        );
+      }
+
+      if (Array.isArray(result)) {
+        setBuyerOrders(result);
+      } else {
+        setBuyerOrders([]);
+      }
+    } catch (error) {
+      console.error(
+        "Failed to load buyer orders:",
+        error
+      );
+
+      setOrdersError(
+        error instanceof Error
+          ? error.message
+          : "Unable to load your orders."
+      );
+    } finally {
+      setOrdersLoading(false);
+    }
+  };
+
+  const loadSellerOrders = async () => {
+    const token = getToken();
+
+    if (!token) {
+      return;
+    }
+
+    try {
+      setOrdersLoading(true);
+      setOrdersError("");
+
+      const response = await fetch(
+        "http://localhost:5038/api/orders/seller-orders",
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: "application/json",
+          },
+        }
+      );
+
+      const result = await getApiResult(response);
+
+      if (!response.ok) {
+        throw new Error(
+          result?.message ||
+            "Unable to load seller orders."
+        );
+      }
+
+      if (Array.isArray(result)) {
+        setSellerOrders(result);
+      } else {
+        setSellerOrders([]);
+      }
+    } catch (error) {
+      console.error(
+        "Failed to load seller orders:",
+        error
+      );
+
+      setOrdersError(
+        error instanceof Error
+          ? error.message
+          : "Unable to load seller orders."
+      );
+    } finally {
+      setOrdersLoading(false);
+    }
+  };
+
   useEffect(() => {
     let isMounted = true;
 
-    const loadSellerProjects = async () => {
-      const token =
-        localStorage.getItem(
-          "projecthub_token"
-        ) ||
-        sessionStorage.getItem(
-          "projecthub_token"
-        );
-
-      if (!token) {
-        return;
-      }
-
-      try {
-        setProjectsLoading(true);
-        setProjectsError("");
-
-        const response = await fetch(
-          "http://localhost:5038/api/seller/projects",
-          {
-            method: "GET",
-            headers: {
-              Authorization: `Bearer ${token}`,
-              Accept: "application/json",
-            },
-          }
-        );
-
-        const result:
-          | SellerProject[]
-          | { message?: string } =
-          await response.json();
-
-        if (!response.ok) {
-          throw new Error(
-            "message" in result && result.message
-              ? result.message
-              : "Unable to load your projects."
-          );
-        }
-
-        if (isMounted) {
-          setSellerProjects(
-            result as SellerProject[]
-          );
-        }
-      } catch (error) {
-        if (!isMounted) {
-          return;
-        }
-
-        console.error(
-          "Failed to load seller projects:",
-          error
-        );
-
-        setProjectsError(
-          error instanceof Error
-            ? error.message
-            : "Unable to load your projects."
-        );
-      } finally {
-        if (isMounted) {
-          setProjectsLoading(false);
-        }
-      }
-    };
-
     const loadUser = async () => {
-      const token =
-        localStorage.getItem(
-          "projecthub_token"
-        ) ||
-        sessionStorage.getItem(
-          "projecthub_token"
-        );
+      const token = getToken();
 
       if (!token) {
         navigate("/login");
@@ -159,11 +309,18 @@ function Dashboard() {
         setUser(currentUser);
         setError("");
 
-        if (
-          currentUser.role.toLowerCase() ===
-          "seller"
-        ) {
-          await loadSellerProjects();
+        const role =
+          String(
+            currentUser.role ?? ""
+          ).toLowerCase();
+
+        if (role === "seller") {
+          await Promise.all([
+            loadSellerProjects(),
+            loadSellerOrders(),
+          ]);
+        } else {
+          await loadBuyerOrders();
         }
       } catch (error) {
         if (!isMounted) {
@@ -225,8 +382,51 @@ function Dashboard() {
       .toUpperCase();
 
   const isSeller =
-    userRole.toLowerCase() ===
+    String(userRole).toLowerCase() ===
     "seller";
+
+  const isOrderActive = (
+    status: string
+  ) => {
+    const normalized =
+      String(status || "")
+        .toLowerCase()
+        .trim();
+
+    return ![
+      "completed",
+      "cancelled",
+      "payment released",
+    ].includes(normalized);
+  };
+
+  const activeOrders = isSeller
+    ? sellerOrders.filter(
+        (order) =>
+          isOrderActive(order.status)
+      ).length
+    : buyerOrders.filter(
+        (order) =>
+          isOrderActive(order.status)
+      ).length;
+
+  const scrollToOrders = () => {
+    setActiveMenu("Orders");
+
+    setTimeout(() => {
+      const ordersSection =
+        document.getElementById(
+          "dashboard-orders"
+        );
+
+      if (ordersSection) {
+        ordersSection.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      }
+    }, 50);
+  };
 
   const handleLogout = () => {
     localStorage.removeItem(
@@ -252,13 +452,7 @@ function Dashboard() {
       return;
     }
 
-    const token =
-      localStorage.getItem(
-        "projecthub_token"
-      ) ||
-      sessionStorage.getItem(
-        "projecthub_token"
-      );
+    const token = getToken();
 
     if (!token) {
       navigate("/login");
@@ -279,20 +473,13 @@ function Dashboard() {
         }
       );
 
-      let result:
-        | { message?: string }
-        | null = null;
-
-      try {
-        result = await response.json();
-      } catch {
-        result = null;
-      }
+      const result =
+        await getApiResult(response);
 
       if (!response.ok) {
         throw new Error(
           result?.message ||
-          "Unable to delete the project."
+            "Unable to delete the project."
         );
       }
 
@@ -323,6 +510,393 @@ function Dashboard() {
     }
   };
 
+  const handleStartWork = async (
+    orderId: number
+  ) => {
+    const token = getToken();
+
+    if (!token) {
+      navigate("/login");
+      return;
+    }
+
+    try {
+      setActionOrderId(orderId);
+
+      const response = await fetch(
+        `http://localhost:5038/api/orders/${orderId}/start-work`,
+        {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: "application/json",
+          },
+        }
+      );
+
+      const result =
+        await getApiResult(response);
+
+      if (!response.ok) {
+        throw new Error(
+          result?.message ||
+            "Unable to start work."
+        );
+      }
+
+      setSellerOrders(
+        (orders) =>
+          orders.map(
+            (order) =>
+              order.id === orderId
+                ? {
+                    ...order,
+                    status:
+                      "Seller Working",
+                    updatedAt:
+                      new Date().toISOString(),
+                  }
+                : order
+          )
+      );
+
+      window.alert(
+        "Work started successfully."
+      );
+    } catch (error) {
+      console.error(
+        "Failed to start work:",
+        error
+      );
+
+      window.alert(
+        error instanceof Error
+          ? error.message
+          : "Unable to start work."
+      );
+    } finally {
+      setActionOrderId(null);
+    }
+  };
+
+  const handleSubmitWork = async (
+    orderId: number
+  ) => {
+    const deliveryNote =
+      deliveryNotes[orderId]?.trim();
+
+    if (!deliveryNote) {
+      window.alert(
+        "Please write a delivery note before submitting the work."
+      );
+      return;
+    }
+
+    const token = getToken();
+
+    if (!token) {
+      navigate("/login");
+      return;
+    }
+
+    try {
+      setActionOrderId(orderId);
+
+      const response = await fetch(
+        `http://localhost:5038/api/orders/${orderId}/submit`,
+        {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type":
+              "application/json",
+            Accept: "application/json",
+          },
+          body: JSON.stringify({
+            deliveryNote,
+          }),
+        }
+      );
+
+      const result =
+        await getApiResult(response);
+
+      if (!response.ok) {
+        throw new Error(
+          result?.message ||
+            "Unable to submit the work."
+        );
+      }
+
+      setSellerOrders(
+        (orders) =>
+          orders.map(
+            (order) =>
+              order.id === orderId
+                ? {
+                    ...order,
+                    status:
+                      "Submitted",
+                    deliveryNote,
+                    updatedAt:
+                      new Date().toISOString(),
+                  }
+                : order
+          )
+      );
+
+      setDeliveryNotes(
+        (current) => {
+          const updated = {
+            ...current,
+          };
+
+          delete updated[orderId];
+
+          return updated;
+        }
+      );
+
+      window.alert(
+        "Work submitted successfully."
+      );
+    } catch (error) {
+      console.error(
+        "Failed to submit work:",
+        error
+      );
+
+      window.alert(
+        error instanceof Error
+          ? error.message
+          : "Unable to submit the work."
+      );
+    } finally {
+      setActionOrderId(null);
+    }
+  };
+
+  const handleReviewWork = async (
+    orderId: number
+  ) => {
+    const token = getToken();
+
+    if (!token) {
+      navigate("/login");
+      return;
+    }
+
+    try {
+      setActionOrderId(orderId);
+
+      const response = await fetch(
+        `http://localhost:5038/api/orders/${orderId}/review`,
+        {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: "application/json",
+          },
+        }
+      );
+
+      const result =
+        await getApiResult(response);
+
+      if (!response.ok) {
+        throw new Error(
+          result?.message ||
+            "Unable to review the work."
+        );
+      }
+
+      setBuyerOrders(
+        (orders) =>
+          orders.map(
+            (order) =>
+              order.id === orderId
+                ? {
+                    ...order,
+                    status:
+                      "Buyer Review",
+                    updatedAt:
+                      new Date().toISOString(),
+                  }
+                : order
+          )
+      );
+
+      window.alert(
+        "Order moved to buyer review."
+      );
+    } catch (error) {
+      console.error(
+        "Failed to review work:",
+        error
+      );
+
+      window.alert(
+        error instanceof Error
+          ? error.message
+          : "Unable to review the work."
+      );
+    } finally {
+      setActionOrderId(null);
+    }
+  };
+
+  const handleCompleteOrder = async (
+    orderId: number
+  ) => {
+    const confirmed =
+      window.confirm(
+        "Are you sure you want to complete this order?\n\nAfter completion, the seller payout will become ready for release."
+      );
+
+    if (!confirmed) {
+      return;
+    }
+
+    const token = getToken();
+
+    if (!token) {
+      navigate("/login");
+      return;
+    }
+
+    try {
+      setActionOrderId(orderId);
+
+      const response = await fetch(
+        `http://localhost:5038/api/orders/${orderId}/complete`,
+        {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: "application/json",
+          },
+        }
+      );
+
+      const result =
+        await getApiResult(response);
+
+      if (!response.ok) {
+        throw new Error(
+          result?.message ||
+            "Unable to complete the order."
+        );
+      }
+
+      setBuyerOrders(
+        (orders) =>
+          orders.map(
+            (order) =>
+              order.id === orderId
+                ? {
+                    ...order,
+                    status:
+                      "Completed",
+                    updatedAt:
+                      new Date().toISOString(),
+                  }
+                : order
+          )
+      );
+
+      window.alert(
+        "Order completed successfully."
+      );
+    } catch (error) {
+      console.error(
+        "Failed to complete order:",
+        error
+      );
+
+      window.alert(
+        error instanceof Error
+          ? error.message
+          : "Unable to complete the order."
+      );
+    } finally {
+      setActionOrderId(null);
+    }
+  };
+
+  const getStatusStyle = (
+    status: string
+  ) => {
+    const normalized =
+      String(status || "")
+        .toLowerCase();
+
+    if (
+      normalized.includes(
+        "completed"
+      )
+    ) {
+      return {
+        background: "#dcfce7",
+        color: "#166534",
+      };
+    }
+
+    if (
+      normalized.includes(
+        "cancelled"
+      )
+    ) {
+      return {
+        background: "#fee2e2",
+        color: "#991b1b",
+      };
+    }
+
+    if (
+      normalized.includes(
+        "held"
+      ) ||
+      normalized.includes(
+        "working"
+      )
+    ) {
+      return {
+        background: "#dbeafe",
+        color: "#1d4ed8",
+      };
+    }
+
+    if (
+      normalized.includes(
+        "submitted"
+      ) ||
+      normalized.includes(
+        "review"
+      )
+    ) {
+      return {
+        background: "#fef3c7",
+        color: "#92400e",
+      };
+    }
+
+    if (
+      normalized.includes(
+        "released"
+      )
+    ) {
+      return {
+        background: "#dcfce7",
+        color: "#166534",
+      };
+    }
+
+    return {
+      background: "#f1f5f9",
+      color: "#475569",
+    };
+  };
+
   if (isLoading) {
     return (
       <main className="dashboard-page">
@@ -344,7 +918,11 @@ function Dashboard() {
             }}
           >
             Project
-            <span style={{ color: "#7c3aed" }}>
+            <span
+              style={{
+                color: "#7c3aed",
+              }}
+            >
               Hub
             </span>
           </div>
@@ -391,6 +969,7 @@ function Dashboard() {
           </span>
 
           <button
+            type="button"
             className={`sidebar-link ${
               activeMenu === "Overview"
                 ? "active"
@@ -421,20 +1000,20 @@ function Dashboard() {
           </Link>
 
           <button
+            type="button"
             className={`sidebar-link ${
               activeMenu === "Orders"
                 ? "active"
                 : ""
             }`}
-            onClick={() =>
-              setActiveMenu("Orders")
-            }
+            onClick={scrollToOrders}
           >
             <span>▣</span>
             My Orders
           </button>
 
           <button
+            type="button"
             className={`sidebar-link ${
               activeMenu === "Messages"
                 ? "active"
@@ -473,6 +1052,7 @@ function Dashboard() {
           </Link>
 
           <button
+            type="button"
             className="sidebar-link"
             onClick={handleLogout}
           >
@@ -540,6 +1120,7 @@ function Dashboard() {
           <div className="dashboard-top-actions">
 
             <button
+              type="button"
               className="notification-button"
               aria-label="Notifications"
             >
@@ -655,12 +1236,14 @@ function Dashboard() {
                 </span>
 
                 <strong>
-                  0
+                  {activeOrders}
                 </strong>
               </div>
 
               <small>
-                No active orders
+                {activeOrders === 0
+                  ? "No active orders"
+                  : "Orders currently in progress"}
               </small>
 
             </div>
@@ -711,6 +1294,959 @@ function Dashboard() {
 
           </section>
 
+          {/* ORDERS */}
+
+          <section
+            id="dashboard-orders"
+            className="dashboard-section"
+          >
+
+            <div className="section-heading">
+
+              <div>
+
+                <span>
+                  {isSeller
+                    ? "SELLER ORDERS"
+                    : "MY ORDERS"}
+                </span>
+
+                <h2>
+                  {isSeller
+                    ? "Orders from buyers"
+                    : "My project orders"}
+                </h2>
+
+              </div>
+
+              <span
+                style={{
+                  fontSize: "13px",
+                  color: "#64748b",
+                }}
+              >
+                {isSeller
+                  ? `${sellerOrders.length} total order${
+                      sellerOrders.length === 1
+                        ? ""
+                        : "s"
+                    }`
+                  : `${buyerOrders.length} total order${
+                      buyerOrders.length === 1
+                        ? ""
+                        : "s"
+                    }`}
+              </span>
+
+            </div>
+
+            {ordersLoading ? (
+              <div className="activity-card">
+
+                <div className="empty-state">
+
+                  <div className="empty-icon">
+                    ◌
+                  </div>
+
+                  <h3>
+                    Loading orders...
+                  </h3>
+
+                  <p>
+                    Please wait while we load
+                    your orders.
+                  </p>
+
+                </div>
+
+              </div>
+            ) : ordersError ? (
+              <div className="activity-card">
+
+                <div className="empty-state">
+
+                  <div className="empty-icon">
+                    !
+                  </div>
+
+                  <h3>
+                    Unable to load orders
+                  </h3>
+
+                  <p>
+                    {ordersError}
+                  </p>
+
+                </div>
+
+              </div>
+            ) : isSeller ? (
+              sellerOrders.length === 0 ? (
+                <div className="activity-card">
+
+                  <div className="empty-state">
+
+                    <div className="empty-icon">
+                      ▣
+                    </div>
+
+                    <h3>
+                      No orders yet
+                    </h3>
+
+                    <p>
+                      When someone purchases one
+                      of your projects, the order
+                      will appear here.
+                    </p>
+
+                    <Link
+                      to="/projects"
+                      className="empty-action"
+                    >
+                      View Marketplace →
+                    </Link>
+
+                  </div>
+
+                </div>
+              ) : (
+                <div
+                  style={{
+                    display: "grid",
+                    gap: "16px",
+                  }}
+                >
+
+                  {sellerOrders.map(
+                    (order) => {
+                      const statusStyle =
+                        getStatusStyle(
+                          order.status
+                        );
+
+                      return (
+                        <div
+                          key={order.id}
+                          style={{
+                            border:
+                              "1px solid #e2e8f0",
+                            borderRadius:
+                              "18px",
+                            padding:
+                              "20px",
+                            background:
+                              "#ffffff",
+                          }}
+                        >
+
+                          <div
+                            style={{
+                              display:
+                                "flex",
+                              justifyContent:
+                                "space-between",
+                              alignItems:
+                                "flex-start",
+                              gap:
+                                "16px",
+                              flexWrap:
+                                "wrap",
+                            }}
+                          >
+
+                            <div>
+
+                              <span
+                                style={{
+                                  display:
+                                    "block",
+                                  fontSize:
+                                    "12px",
+                                  fontWeight:
+                                    700,
+                                  color:
+                                    "#7c3aed",
+                                  marginBottom:
+                                    "6px",
+                                  textTransform:
+                                    "uppercase",
+                                }}
+                              >
+                                Order #
+                                {order.id}
+                              </span>
+
+                              <h3
+                                style={{
+                                  margin:
+                                    "0 0 7px",
+                                  color:
+                                    "#0f172a",
+                                  fontSize:
+                                    "19px",
+                                }}
+                              >
+                                {order.projectTitle}
+                              </h3>
+
+                              <p
+                                style={{
+                                  margin:
+                                    0,
+                                  color:
+                                    "#64748b",
+                                  fontSize:
+                                    "14px",
+                                }}
+                              >
+                                Buyer:{" "}
+                                <strong
+                                  style={{
+                                    color:
+                                      "#334155",
+                                  }}
+                                >
+                                  {order.buyerName}
+                                </strong>{" "}
+                                @{order.buyerUsername}
+                              </p>
+
+                            </div>
+
+                            <span
+                              style={{
+                                ...statusStyle,
+                                padding:
+                                  "7px 12px",
+                                borderRadius:
+                                  "999px",
+                                fontSize:
+                                  "12px",
+                                fontWeight:
+                                  700,
+                                whiteSpace:
+                                  "nowrap",
+                              }}
+                            >
+                              {order.status}
+                            </span>
+
+                          </div>
+
+                          <div
+                            style={{
+                              display:
+                                "grid",
+                              gridTemplateColumns:
+                                "repeat(auto-fit, minmax(130px, 1fr))",
+                              gap:
+                                "14px",
+                              marginTop:
+                                "18px",
+                              paddingTop:
+                                "18px",
+                              borderTop:
+                                "1px solid #e2e8f0",
+                            }}
+                          >
+
+                            <div>
+
+                              <span
+                                style={{
+                                  display:
+                                    "block",
+                                  color:
+                                    "#64748b",
+                                  fontSize:
+                                    "12px",
+                                  marginBottom:
+                                    "4px",
+                                }}
+                              >
+                                Project Value
+                              </span>
+
+                              <strong
+                                style={{
+                                  color:
+                                    "#0f172a",
+                                  fontSize:
+                                    "17px",
+                                }}
+                              >
+                                ৳
+                                {Number(
+                                  order.projectPrice
+                                ).toLocaleString()}
+                              </strong>
+
+                            </div>
+
+                            <div>
+
+                              <span
+                                style={{
+                                  display:
+                                    "block",
+                                  color:
+                                    "#64748b",
+                                  fontSize:
+                                    "12px",
+                                  marginBottom:
+                                    "4px",
+                                }}
+                              >
+                                Your Earnings
+                              </span>
+
+                              <strong
+                                style={{
+                                  color:
+                                    "#16a34a",
+                                  fontSize:
+                                    "17px",
+                                }}
+                              >
+                                ৳
+                                {Number(
+                                  order.sellerAmount
+                                ).toLocaleString()}
+                              </strong>
+
+                            </div>
+
+                            <div>
+
+                              <span
+                                style={{
+                                  display:
+                                    "block",
+                                  color:
+                                    "#64748b",
+                                  fontSize:
+                                    "12px",
+                                  marginBottom:
+                                    "4px",
+                                }}
+                              >
+                                Order Date
+                              </span>
+
+                              <strong
+                                style={{
+                                  color:
+                                    "#334155",
+                                  fontSize:
+                                    "14px",
+                                }}
+                              >
+                                {new Date(
+                                  order.createdAt
+                                ).toLocaleDateString()}
+                              </strong>
+
+                            </div>
+
+                          </div>
+
+                          {order.buyerMessage && (
+                            <div
+                              style={{
+                                marginTop:
+                                  "16px",
+                                padding:
+                                  "13px 15px",
+                                borderRadius:
+                                  "12px",
+                                background:
+                                  "#f8fafc",
+                                color:
+                                  "#475569",
+                                fontSize:
+                                  "13px",
+                                lineHeight:
+                                  1.6,
+                              }}
+                            >
+                              <strong>
+                                Buyer message:
+                              </strong>{" "}
+                              {order.buyerMessage}
+                            </div>
+                          )}
+
+                          {order.deliveryNote && (
+                            <div
+                              style={{
+                                marginTop:
+                                  "12px",
+                                padding:
+                                  "13px 15px",
+                                borderRadius:
+                                  "12px",
+                                background:
+                                  "#f0fdf4",
+                                color:
+                                  "#166534",
+                                fontSize:
+                                  "13px",
+                                lineHeight:
+                                  1.6,
+                              }}
+                            >
+                              <strong>
+                                Delivery note:
+                              </strong>{" "}
+                              {order.deliveryNote}
+                            </div>
+                          )}
+
+                          {order.status ===
+                            "Payment Held" && (
+                            <div
+                              style={{
+                                marginTop:
+                                  "18px",
+                              }}
+                            >
+
+                              <button
+                                type="button"
+                                className="dashboard-primary-button"
+                                disabled={
+                                  actionOrderId ===
+                                  order.id
+                                }
+                                onClick={() =>
+                                  handleStartWork(
+                                    order.id
+                                  )
+                                }
+                              >
+                                {actionOrderId ===
+                                order.id
+                                  ? "Starting..."
+                                  : "Start Work →"}
+                              </button>
+
+                            </div>
+                          )}
+
+                          {order.status ===
+                            "Seller Working" && (
+                            <div
+                              style={{
+                                marginTop:
+                                  "18px",
+                                display:
+                                  "grid",
+                                gap:
+                                  "10px",
+                              }}
+                            >
+
+                              <textarea
+                                value={
+                                  deliveryNotes[
+                                    order.id
+                                  ] || ""
+                                }
+                                onChange={(
+                                  event
+                                ) =>
+                                  setDeliveryNotes(
+                                    (
+                                      current
+                                    ) => ({
+                                      ...current,
+                                      [order.id]:
+                                        event
+                                          .target
+                                          .value,
+                                    })
+                                  )
+                                }
+                                placeholder="Write a delivery note..."
+                                rows={3}
+                                style={{
+                                  width:
+                                    "100%",
+                                  boxSizing:
+                                    "border-box",
+                                  padding:
+                                    "12px",
+                                  border:
+                                    "1px solid #e2e8f0",
+                                  borderRadius:
+                                    "10px",
+                                  resize:
+                                    "vertical",
+                                  fontFamily:
+                                    "inherit",
+                                  fontSize:
+                                    "14px",
+                                  outline:
+                                    "none",
+                                }}
+                              />
+
+                              <button
+                                type="button"
+                                className="dashboard-primary-button"
+                                disabled={
+                                  actionOrderId ===
+                                  order.id
+                                }
+                                onClick={() =>
+                                  handleSubmitWork(
+                                    order.id
+                                  )
+                                }
+                              >
+                                {actionOrderId ===
+                                order.id
+                                  ? "Submitting..."
+                                  : "Submit Work →"}
+                              </button>
+
+                            </div>
+                          )}
+
+                          {order.status ===
+                            "Completed" && (
+                            <div
+                              style={{
+                                marginTop:
+                                  "18px",
+                                padding:
+                                  "12px 15px",
+                                borderRadius:
+                                  "10px",
+                                background:
+                                  "#f0fdf4",
+                                color:
+                                  "#166534",
+                                fontSize:
+                                  "13px",
+                                fontWeight:
+                                  600,
+                              }}
+                            >
+                              ✓ Order completed.
+                              ProjectHub will handle
+                              the seller payout
+                              release.
+                            </div>
+                          )}
+
+                        </div>
+                      );
+                    }
+                  )}
+
+                </div>
+              )
+            ) : (
+              buyerOrders.length === 0 ? (
+                <div className="activity-card">
+
+                  <div className="empty-state">
+
+                    <div className="empty-icon">
+                      ▣
+                    </div>
+
+                    <h3>
+                      You have no orders yet
+                    </h3>
+
+                    <p>
+                      Browse the marketplace and
+                      purchase a project to create
+                      your first order.
+                    </p>
+
+                    <Link
+                      to="/projects"
+                      className="empty-action"
+                    >
+                      Explore Projects →
+                    </Link>
+
+                  </div>
+
+                </div>
+              ) : (
+                <div
+                  style={{
+                    display: "grid",
+                    gap: "16px",
+                  }}
+                >
+
+                  {buyerOrders.map(
+                    (order) => {
+                      const statusStyle =
+                        getStatusStyle(
+                          order.status
+                        );
+
+                      return (
+                        <div
+                          key={order.id}
+                          style={{
+                            border:
+                              "1px solid #e2e8f0",
+                            borderRadius:
+                              "18px",
+                            padding:
+                              "20px",
+                            background:
+                              "#ffffff",
+                          }}
+                        >
+
+                          <div
+                            style={{
+                              display:
+                                "flex",
+                              justifyContent:
+                                "space-between",
+                              alignItems:
+                                "flex-start",
+                              gap:
+                                "16px",
+                              flexWrap:
+                                "wrap",
+                            }}
+                          >
+
+                            <div>
+
+                              <span
+                                style={{
+                                  display:
+                                    "block",
+                                  fontSize:
+                                    "12px",
+                                  fontWeight:
+                                    700,
+                                  color:
+                                    "#7c3aed",
+                                  marginBottom:
+                                    "6px",
+                                  textTransform:
+                                    "uppercase",
+                                }}
+                              >
+                                Order #
+                                {order.id}
+                              </span>
+
+                              <h3
+                                style={{
+                                  margin:
+                                    "0 0 7px",
+                                  color:
+                                    "#0f172a",
+                                  fontSize:
+                                    "19px",
+                                }}
+                              >
+                                {order.projectTitle}
+                              </h3>
+
+                              <p
+                                style={{
+                                  margin:
+                                    0,
+                                  color:
+                                    "#64748b",
+                                  fontSize:
+                                    "14px",
+                                }}
+                              >
+                                Seller:{" "}
+                                <strong
+                                  style={{
+                                    color:
+                                      "#334155",
+                                  }}
+                                >
+                                  {order.sellerName}
+                                </strong>{" "}
+                                @{order.sellerUsername}
+                              </p>
+
+                            </div>
+
+                            <span
+                              style={{
+                                ...statusStyle,
+                                padding:
+                                  "7px 12px",
+                                borderRadius:
+                                  "999px",
+                                fontSize:
+                                  "12px",
+                                fontWeight:
+                                  700,
+                                whiteSpace:
+                                  "nowrap",
+                              }}
+                            >
+                              {order.status}
+                            </span>
+
+                          </div>
+
+                          <div
+                            style={{
+                              display:
+                                "grid",
+                              gridTemplateColumns:
+                                "repeat(auto-fit, minmax(130px, 1fr))",
+                              gap:
+                                "14px",
+                              marginTop:
+                                "18px",
+                              paddingTop:
+                                "18px",
+                              borderTop:
+                                "1px solid #e2e8f0",
+                            }}
+                          >
+
+                            <div>
+
+                              <span
+                                style={{
+                                  display:
+                                    "block",
+                                  color:
+                                    "#64748b",
+                                  fontSize:
+                                    "12px",
+                                  marginBottom:
+                                    "4px",
+                                }}
+                              >
+                                Project Price
+                              </span>
+
+                              <strong
+                                style={{
+                                  color:
+                                    "#0f172a",
+                                  fontSize:
+                                    "17px",
+                                }}
+                              >
+                                ৳
+                                {Number(
+                                  order.projectPrice
+                                ).toLocaleString()}
+                              </strong>
+
+                            </div>
+
+                            <div>
+
+                              <span
+                                style={{
+                                  display:
+                                    "block",
+                                  color:
+                                    "#64748b",
+                                  fontSize:
+                                    "12px",
+                                  marginBottom:
+                                    "4px",
+                                }}
+                              >
+                                Order Date
+                              </span>
+
+                              <strong
+                                style={{
+                                  color:
+                                    "#334155",
+                                  fontSize:
+                                    "14px",
+                                }}
+                              >
+                                {new Date(
+                                  order.createdAt
+                                ).toLocaleDateString()}
+                              </strong>
+
+                            </div>
+
+                          </div>
+
+                          {order.buyerMessage && (
+                            <div
+                              style={{
+                                marginTop:
+                                  "16px",
+                                padding:
+                                  "13px 15px",
+                                borderRadius:
+                                  "12px",
+                                background:
+                                  "#f8fafc",
+                                color:
+                                  "#475569",
+                                fontSize:
+                                  "13px",
+                                lineHeight:
+                                  1.6,
+                              }}
+                            >
+                              <strong>
+                                Your message:
+                              </strong>{" "}
+                              {order.buyerMessage}
+                            </div>
+                          )}
+
+                          {order.deliveryNote && (
+                            <div
+                              style={{
+                                marginTop:
+                                  "12px",
+                                padding:
+                                  "13px 15px",
+                                borderRadius:
+                                  "12px",
+                                background:
+                                  "#f0fdf4",
+                                color:
+                                  "#166534",
+                                fontSize:
+                                  "13px",
+                                lineHeight:
+                                  1.6,
+                              }}
+                            >
+                              <strong>
+                                Seller delivery:
+                              </strong>{" "}
+                              {order.deliveryNote}
+                            </div>
+                          )}
+
+                          {order.status ===
+                            "Submitted" && (
+                            <div
+                              style={{
+                                display:
+                                  "flex",
+                                gap:
+                                  "10px",
+                                marginTop:
+                                  "18px",
+                                flexWrap:
+                                  "wrap",
+                              }}
+                            >
+
+                              <button
+                                type="button"
+                                className="dashboard-secondary-button"
+                                disabled={
+                                  actionOrderId ===
+                                  order.id
+                                }
+                                onClick={() =>
+                                  handleReviewWork(
+                                    order.id
+                                  )
+                                }
+                              >
+                                {actionOrderId ===
+                                order.id
+                                  ? "Processing..."
+                                  : "Review Work"}
+                              </button>
+
+                            </div>
+                          )}
+
+                          {order.status ===
+                            "Buyer Review" && (
+                            <div
+                              style={{
+                                marginTop:
+                                  "18px",
+                              }}
+                            >
+
+                              <button
+                                type="button"
+                                className="dashboard-primary-button"
+                                disabled={
+                                  actionOrderId ===
+                                  order.id
+                                }
+                                onClick={() =>
+                                  handleCompleteOrder(
+                                    order.id
+                                  )
+                                }
+                              >
+                                {actionOrderId ===
+                                order.id
+                                  ? "Completing..."
+                                  : "Complete Order ✓"}
+                              </button>
+
+                            </div>
+                          )}
+
+                          {order.status ===
+                            "Completed" && (
+                            <div
+                              style={{
+                                marginTop:
+                                  "18px",
+                                padding:
+                                  "12px 15px",
+                                borderRadius:
+                                  "10px",
+                                background:
+                                  "#f0fdf4",
+                                color:
+                                  "#166534",
+                                fontSize:
+                                  "13px",
+                                fontWeight:
+                                  600,
+                              }}
+                            >
+                              ✓ Order completed.
+                              The seller payout is now
+                              ready for ProjectHub
+                              admin release.
+                            </div>
+                          )}
+
+                        </div>
+                      );
+                    }
+                  )}
+
+                </div>
+              )
+            )}
+
+          </section>
+
+          {/* SELLER PROJECTS */}
+
           {isSeller && (
             <section className="dashboard-section">
 
@@ -730,10 +2266,14 @@ function Dashboard() {
 
                 <div
                   style={{
-                    display: "flex",
-                    gap: "10px",
-                    alignItems: "center",
-                    flexWrap: "wrap",
+                    display:
+                      "flex",
+                    gap:
+                      "10px",
+                    alignItems:
+                      "center",
+                    flexWrap:
+                      "wrap",
                   }}
                 >
 
@@ -821,12 +2361,15 @@ function Dashboard() {
               ) : (
                 <div
                   style={{
-                    display: "grid",
+                    display:
+                      "grid",
                     gridTemplateColumns:
                       "repeat(auto-fit, minmax(280px, 1fr))",
-                    gap: "20px",
+                    gap:
+                      "20px",
                   }}
                 >
+
                   {sellerProjects.map(
                     (project) => (
                       <div
@@ -834,20 +2377,25 @@ function Dashboard() {
                         style={{
                           border:
                             "1px solid #e2e8f0",
-                          borderRadius: "18px",
-                          padding: "22px",
-                          background: "#ffffff",
+                          borderRadius:
+                            "18px",
+                          padding:
+                            "22px",
+                          background:
+                            "#ffffff",
                         }}
                       >
 
                         <div
                           style={{
-                            display: "flex",
+                            display:
+                              "flex",
                             justifyContent:
                               "space-between",
                             alignItems:
                               "flex-start",
-                            gap: "12px",
+                            gap:
+                              "12px",
                             marginBottom:
                               "16px",
                           }}
@@ -861,7 +2409,8 @@ function Dashboard() {
                                   "inline-block",
                                 fontSize:
                                   "12px",
-                                fontWeight: 700,
+                                fontWeight:
+                                  700,
                                 color:
                                   "#7c3aed",
                                 marginBottom:
@@ -892,10 +2441,12 @@ function Dashboard() {
 
                           <span
                             style={{
-                              flexShrink: 0,
+                              flexShrink:
+                                0,
                               fontSize:
                                 "11px",
-                              fontWeight: 700,
+                              fontWeight:
+                                700,
                               padding:
                                 "6px 9px",
                               borderRadius:
@@ -952,6 +2503,7 @@ function Dashboard() {
                               "18px",
                           }}
                         >
+
                           {project.technologies
                             .split(",")
                             .map(
@@ -981,6 +2533,7 @@ function Dashboard() {
                                 </span>
                               )
                             )}
+
                         </div>
 
                         <div
@@ -1026,7 +2579,9 @@ function Dashboard() {
                               }}
                             >
                               ৳
-                              {project.price.toLocaleString()}
+                              {Number(
+                                project.price
+                              ).toLocaleString()}
                             </strong>
 
                           </div>
@@ -1089,7 +2644,8 @@ function Dashboard() {
                             to={`/projects/${project.id}`}
                             className="dashboard-primary-button"
                             style={{
-                              flex: 1,
+                              flex:
+                                1,
                               justifyContent:
                                 "center",
                               textDecoration:
@@ -1103,7 +2659,8 @@ function Dashboard() {
                             type="button"
                             className="dashboard-secondary-button"
                             style={{
-                              flex: 1,
+                              flex:
+                                1,
                               border:
                                 "1px solid #e2e8f0",
                               cursor:
@@ -1197,11 +2754,14 @@ function Dashboard() {
                       </div>
                     )
                   )}
+
                 </div>
               )}
 
             </section>
           )}
+
+          {/* QUICK ACTIONS */}
 
           <section className="dashboard-section">
 
@@ -1305,6 +2865,8 @@ function Dashboard() {
 
           </section>
 
+          {/* ACTIVITY */}
+
           <section className="dashboard-section">
 
             <div className="section-heading">
@@ -1321,8 +2883,18 @@ function Dashboard() {
 
               </div>
 
-              <button>
-                View all
+              <button
+                type="button"
+                onClick={scrollToOrders}
+                style={{
+                  border: "none",
+                  background: "transparent",
+                  color: "#7c3aed",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                View orders
               </button>
 
             </div>
@@ -1336,14 +2908,19 @@ function Dashboard() {
                 </div>
 
                 <h3>
-                  No activity yet
+                  {activeOrders > 0
+                    ? `${activeOrders} active order${
+                        activeOrders === 1
+                          ? ""
+                          : "s"
+                      }`
+                    : "No recent activity"}
                 </h3>
 
                 <p>
-                  Once you browse projects,
-                  create requests or place an
-                  order, your activity will
-                  appear here.
+                  {activeOrders > 0
+                    ? "Your active orders are shown in the orders section above."
+                    : "Once you browse projects, create requests or place an order, your activity will appear here."}
                 </p>
 
                 <Link
@@ -1358,6 +2935,8 @@ function Dashboard() {
             </div>
 
           </section>
+
+          {/* ACCOUNT */}
 
           <section className="account-preview">
 

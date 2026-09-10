@@ -1,3 +1,4 @@
+
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import "./AdminDashboard.css";
@@ -13,6 +14,7 @@ interface PendingPayment {
   paymentMethod: string;
   transactionId: string | null;
   status: string;
+  paymentStatus?: string;
   submittedAt: string | null;
 }
 
@@ -55,6 +57,58 @@ interface AdminUser {
   updatedAt: string;
 }
 
+interface FinancialSummary {
+  totalReceived: number;
+  pendingVerificationAmount: number;
+  totalMoneyHeld: number;
+  totalSellerAmount: number;
+  waitingSellerAmount: number;
+  readySellerAmount: number;
+  releasedSellerAmount: number;
+  platformEarnings: number;
+  totalOrders: number;
+  activeSellerPayouts: number;
+  readyToReleaseCount: number;
+  releasedPayoutCount: number;
+  currency: string;
+  commissionRate: number;
+}
+
+interface SellerPayout {
+  id: number;
+  orderId: number;
+  sellerId: number;
+  sellerName: string;
+  sellerUsername: string;
+  projectId: number;
+  projectTitle: string;
+  orderStatus: string;
+  projectPrice: number;
+  commissionAmount: number;
+  sellerAmount: number;
+  payoutAmount: number;
+  payoutStatus: string;
+  adminNote: string | null;
+  readyAt: string | null;
+  releasedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface SellerFinancialSummary {
+  sellerId: number;
+  sellerName: string;
+  sellerUsername: string;
+  totalOwed: number;
+  waitingAmount: number;
+  readyAmount: number;
+  releasedAmount: number;
+  totalOrders: number;
+  waitingOrders: number;
+  readyOrders: number;
+  releasedOrders: number;
+}
+
 const API_URL = "http://localhost:5038/api";
 const USERS_PER_PAGE = 10;
 
@@ -69,6 +123,15 @@ function AdminDashboard() {
 
   const [users, setUsers] =
     useState<AdminUser[]>([]);
+
+  const [financialSummary, setFinancialSummary] =
+    useState<FinancialSummary | null>(null);
+
+  const [sellerPayouts, setSellerPayouts] =
+    useState<SellerPayout[]>([]);
+
+  const [sellerFinancialSummary, setSellerFinancialSummary] =
+    useState<SellerFinancialSummary[]>([]);
 
   const [loading, setLoading] =
     useState(true);
@@ -88,11 +151,32 @@ function AdminDashboard() {
   const [expandedUserId, setExpandedUserId] =
     useState<number | null>(null);
 
+  const [processingPaymentId, setProcessingPaymentId] =
+    useState<number | null>(null);
+
   const getToken = () => {
     return (
       localStorage.getItem("projecthub_token") ||
       sessionStorage.getItem("projecthub_token")
     );
+  };
+
+  const readResponse = async (
+    response: Response
+  ): Promise<any> => {
+    const text = await response.text();
+
+    if (!text.trim()) {
+      return null;
+    }
+
+    try {
+      return JSON.parse(text);
+    } catch {
+      throw new Error(
+        `Invalid JSON response from server (${response.status}).`
+      );
+    }
   };
 
   const loadDashboard = async () => {
@@ -115,6 +199,9 @@ function AdminDashboard() {
         paymentsResponse,
         projectsResponse,
         usersResponse,
+        financialResponse,
+        payoutsResponse,
+        sellersFinancialResponse,
       ] = await Promise.all([
         fetch(
           `${API_URL}/admin/payments/pending`,
@@ -136,12 +223,43 @@ function AdminDashboard() {
             headers,
           }
         ),
+
+        fetch(
+          `${API_URL}/admin/financials/summary`,
+          {
+            headers,
+          }
+        ),
+
+        fetch(
+          `${API_URL}/admin/financials/payouts`,
+          {
+            headers,
+          }
+        ),
+
+        fetch(
+          `${API_URL}/admin/financials/sellers`,
+          {
+            headers,
+          }
+        ),
       ]);
 
+      const responses = [
+        paymentsResponse,
+        projectsResponse,
+        usersResponse,
+        financialResponse,
+        payoutsResponse,
+        sellersFinancialResponse,
+      ];
+
       if (
-        paymentsResponse.status === 401 ||
-        projectsResponse.status === 401 ||
-        usersResponse.status === 401
+        responses.some(
+          (response) =>
+            response.status === 401
+        )
       ) {
         sessionStorage.removeItem(
           "projecthub_token"
@@ -156,9 +274,10 @@ function AdminDashboard() {
       }
 
       if (
-        paymentsResponse.status === 403 ||
-        projectsResponse.status === 403 ||
-        usersResponse.status === 403
+        responses.some(
+          (response) =>
+            response.status === 403
+        )
       ) {
         setError(
           "You do not have permission to access the admin dashboard."
@@ -166,33 +285,69 @@ function AdminDashboard() {
         return;
       }
 
-      const paymentsData =
-        await paymentsResponse.json();
-
-      const projectsData =
-        await projectsResponse.json();
-
-      const usersData =
-        await usersResponse.json();
+      /*
+       * IMPORTANT:
+       * Keep these in exactly the same order as the
+       * Promise.all() responses above.
+       *
+       * The previous version accidentally swapped
+       * payoutsData and sellersFinancialData.
+       */
+      const [
+        paymentsData,
+        projectsData,
+        usersData,
+        financialData,
+        payoutsData,
+        sellersFinancialData,
+      ] = await Promise.all([
+        readResponse(paymentsResponse),
+        readResponse(projectsResponse),
+        readResponse(usersResponse),
+        readResponse(financialResponse),
+        readResponse(payoutsResponse),
+        readResponse(sellersFinancialResponse),
+      ]);
 
       if (!paymentsResponse.ok) {
         throw new Error(
-          paymentsData.message ||
+          paymentsData?.message ||
             "Unable to load payments."
         );
       }
 
       if (!projectsResponse.ok) {
         throw new Error(
-          projectsData.message ||
+          projectsData?.message ||
             "Unable to load projects."
         );
       }
 
       if (!usersResponse.ok) {
         throw new Error(
-          usersData.message ||
+          usersData?.message ||
             "Unable to load users."
+        );
+      }
+
+      if (!financialResponse.ok) {
+        throw new Error(
+          financialData?.message ||
+            "Unable to load financial data."
+        );
+      }
+
+      if (!payoutsResponse.ok) {
+        throw new Error(
+          payoutsData?.message ||
+            "Unable to load seller payouts."
+        );
+      }
+
+      if (!sellersFinancialResponse.ok) {
+        throw new Error(
+          sellersFinancialData?.message ||
+            "Unable to load seller financial data."
         );
       }
 
@@ -213,8 +368,44 @@ function AdminDashboard() {
           ? usersData
           : []
       );
+
+      if (
+        !financialData ||
+        typeof financialData !== "object" ||
+        Array.isArray(financialData)
+      ) {
+        throw new Error(
+          "Financial summary returned an empty or invalid response."
+        );
+      }
+
+      setFinancialSummary(
+        financialData as FinancialSummary
+      );
+
+      /*
+       * Correct response mapping:
+       * payoutsData -> seller payouts
+       * sellersFinancialData -> seller summaries
+       */
+      setSellerPayouts(
+        Array.isArray(payoutsData)
+          ? payoutsData
+          : []
+      );
+
+      setSellerFinancialSummary(
+        Array.isArray(
+          sellersFinancialData
+        )
+          ? sellersFinancialData
+          : []
+      );
     } catch (err) {
-      console.error(err);
+      console.error(
+        "Admin dashboard loading error:",
+        err
+      );
 
       setError(
         err instanceof Error
@@ -261,7 +452,7 @@ function AdminDashboard() {
     users.filter(
       (user) =>
         !user.isVerified &&
-        user.role.toLowerCase() !==
+        (user.role || "").toLowerCase() !==
           "admin"
     );
 
@@ -271,19 +462,17 @@ function AdminDashboard() {
         user.isActive
     );
 
-  
-
   const buyers =
     users.filter(
       (user) =>
-        user.role.toLowerCase() ===
+        (user.role || "").toLowerCase() ===
         "buyer"
     );
 
   const sellers =
     users.filter(
       (user) =>
-        user.role.toLowerCase() ===
+        (user.role || "").toLowerCase() ===
         "seller"
     );
 
@@ -295,18 +484,33 @@ function AdminDashboard() {
 
     return users.filter(
       (user) => {
+        const role =
+          (user.role || "").toLowerCase();
+
+        const fullName =
+          user.fullName || "";
+
+        const username =
+          user.username || "";
+
+        const email =
+          user.email || "";
+
+        const studentId =
+          user.studentId || "";
+
         const matchesSearch =
           !search ||
-          user.fullName
+          fullName
             .toLowerCase()
             .includes(search) ||
-          user.username
+          username
             .toLowerCase()
             .includes(search) ||
-          user.email
+          email
             .toLowerCase()
             .includes(search) ||
-          (user.studentId || "")
+          studentId
             .toLowerCase()
             .includes(search);
 
@@ -316,18 +520,15 @@ function AdminDashboard() {
             user.isVerified) ||
           (userFilter === "unverified" &&
             !user.isVerified &&
-            user.role.toLowerCase() !==
-              "admin") ||
+            role !== "admin") ||
           (userFilter === "active" &&
             user.isActive) ||
           (userFilter === "inactive" &&
             !user.isActive) ||
           (userFilter === "buyer" &&
-            user.role.toLowerCase() ===
-              "buyer") ||
+            role === "buyer") ||
           (userFilter === "seller" &&
-            user.role.toLowerCase() ===
-              "seller");
+            role === "seller");
 
         return (
           matchesSearch &&
@@ -444,6 +645,112 @@ function AdminDashboard() {
     totalUserPages,
   ]);
 
+  const handlePaymentAction = async (
+    paymentId: number,
+    action: "verify" | "reject"
+  ) => {
+    try {
+      const token = getToken();
+
+      if (!token) {
+        navigate("/login");
+        return;
+      }
+
+      const payment = pendingPayments.find(
+        (item) =>
+          item.id === paymentId
+      );
+
+      if (!payment) {
+        setError(
+          "Payment could not be found."
+        );
+        return;
+      }
+
+      const actionText =
+        action === "verify"
+          ? "verify this payment"
+          : "reject this payment";
+
+      const confirmed =
+        window.confirm(
+          `Are you sure you want to ${actionText}?\n\nProject: ${payment.projectTitle}\nAmount: ৳${payment.amount.toLocaleString()}\nTransaction ID: ${payment.transactionId || "Not provided"}`
+        );
+
+      if (!confirmed) {
+        return;
+      }
+
+      setProcessingPaymentId(
+        paymentId
+      );
+
+      setError("");
+
+      const response = await fetch(
+        `${API_URL}/admin/payments/${paymentId}/${action}`,
+        {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      const result =
+        await readResponse(response);
+
+      if (
+        response.status === 401
+      ) {
+        sessionStorage.removeItem(
+          "projecthub_token"
+        );
+
+        localStorage.removeItem(
+          "projecthub_token"
+        );
+
+        navigate("/login");
+        return;
+      }
+
+      if (
+        response.status === 403
+      ) {
+        throw new Error(
+          "You do not have permission to manage payments."
+        );
+      }
+
+      if (!response.ok) {
+        throw new Error(
+          result?.message ||
+            `Unable to ${action} payment.`
+        );
+      }
+
+      await loadDashboard();
+    } catch (err) {
+      console.error(
+        "Payment action error:",
+        err
+      );
+
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Unable to update payment."
+      );
+    } finally {
+      setProcessingPaymentId(
+        null
+      );
+    }
+  };
+
   const handleUserAction = async (
     userId: number,
     action:
@@ -495,11 +802,34 @@ function AdminDashboard() {
       );
 
       const result =
-        await response.json();
+        await readResponse(response);
+
+      if (
+        response.status === 401
+      ) {
+        sessionStorage.removeItem(
+          "projecthub_token"
+        );
+
+        localStorage.removeItem(
+          "projecthub_token"
+        );
+
+        navigate("/login");
+        return;
+      }
+
+      if (
+        response.status === 403
+      ) {
+        throw new Error(
+          "You do not have permission to manage users."
+        );
+      }
 
       if (!response.ok) {
         throw new Error(
-          result.message ||
+          result?.message ||
             "Unable to update user."
         );
       }
@@ -508,7 +838,10 @@ function AdminDashboard() {
 
       setExpandedUserId(null);
     } catch (err) {
-      console.error(err);
+      console.error(
+        "User action error:",
+        err
+      );
 
       setError(
         err instanceof Error
@@ -531,9 +864,22 @@ function AdminDashboard() {
   const formatDate = (
     date: string
   ) => {
-    return new Date(
-      date
-    ).toLocaleString(
+    if (!date) {
+      return "—";
+    }
+
+    const parsedDate =
+      new Date(date);
+
+    if (
+      Number.isNaN(
+        parsedDate.getTime()
+      )
+    ) {
+      return "—";
+    }
+
+    return parsedDate.toLocaleString(
       "en-US",
       {
         dateStyle: "medium",
@@ -545,8 +891,13 @@ function AdminDashboard() {
   const getInitials = (
     name: string
   ) => {
+    if (!name) {
+      return "??";
+    }
+
     return name
-      .split(" ")
+      .trim()
+      .split(/\s+/)
       .map(
         (part) =>
           part.charAt(0)
@@ -555,6 +906,577 @@ function AdminDashboard() {
       .join("")
       .toUpperCase();
   };
+
+  const formatMoney = (
+    amount: number
+  ) => {
+    return `৳${Number(
+      amount || 0
+    ).toLocaleString(
+      "en-BD",
+      {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2,
+      }
+    )}`;
+  };
+
+  const financialStyles = `
+    .ph-finance {
+      width: 100%;
+    }
+
+    .ph-finance-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 24px;
+      margin-bottom: 28px;
+    }
+
+    .ph-finance-title p {
+      max-width: 680px;
+      margin: 10px 0 0;
+      color: rgba(255,255,255,.58);
+      line-height: 1.6;
+    }
+
+    .ph-commission {
+      min-width: 150px;
+      padding: 14px 18px;
+      border: 1px solid rgba(255,255,255,.10);
+      border-radius: 14px;
+      background: rgba(255,255,255,.035);
+      text-align: right;
+    }
+
+    .ph-commission span {
+      display: block;
+      font-size: 10px;
+      letter-spacing: .13em;
+      color: rgba(255,255,255,.42);
+      margin-bottom: 4px;
+    }
+
+    .ph-commission strong {
+      font-size: 25px;
+      color: #fff;
+    }
+
+    .ph-money-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .ph-money-card {
+      position: relative;
+      min-height: 150px;
+      padding: 22px;
+      border: 1px solid rgba(255,255,255,.09);
+      border-radius: 18px;
+      background:
+        linear-gradient(
+          145deg,
+          rgba(255,255,255,.055),
+          rgba(255,255,255,.018)
+        );
+      overflow: hidden;
+    }
+
+    .ph-money-card::after {
+      content: "";
+      position: absolute;
+      width: 90px;
+      height: 90px;
+      border-radius: 50%;
+      right: -35px;
+      bottom: -40px;
+      background: rgba(255,255,255,.025);
+    }
+
+    .ph-money-card.received {
+      border-color: rgba(80,220,150,.18);
+    }
+
+    .ph-money-card.held {
+      border-color: rgba(90,170,255,.18);
+    }
+
+    .ph-money-card.owed {
+      border-color: rgba(255,190,80,.18);
+    }
+
+    .ph-money-card.earnings {
+      border-color: rgba(190,110,255,.18);
+    }
+
+    .ph-money-label {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: rgba(255,255,255,.45);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .13em;
+    }
+
+    .ph-money-icon {
+      width: 30px;
+      height: 30px;
+      border-radius: 9px;
+      display: grid;
+      place-items: center;
+      background: rgba(255,255,255,.055);
+      color: rgba(255,255,255,.75);
+      font-size: 14px;
+    }
+
+    .ph-money-value {
+      display: block;
+      margin-top: 22px;
+      font-size: clamp(25px, 2.2vw, 34px);
+      line-height: 1;
+      letter-spacing: -.04em;
+      color: #fff;
+      font-weight: 800;
+    }
+
+    .ph-money-description {
+      margin: 10px 0 0;
+      color: rgba(255,255,255,.42);
+      font-size: 12px;
+    }
+
+    .ph-finance-strip {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      margin-top: 14px;
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: 16px;
+      overflow: hidden;
+      background: rgba(255,255,255,.025);
+    }
+
+    .ph-strip-item {
+      padding: 18px 20px;
+      border-right: 1px solid rgba(255,255,255,.07);
+    }
+
+    .ph-strip-item:last-child {
+      border-right: none;
+    }
+
+    .ph-strip-item span {
+      display: block;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: .12em;
+      color: rgba(255,255,255,.38);
+      margin-bottom: 8px;
+    }
+
+    .ph-strip-item strong {
+      display: block;
+      font-size: 21px;
+      color: #fff;
+      margin-bottom: 4px;
+    }
+
+    .ph-strip-item small {
+      color: rgba(255,255,255,.38);
+      font-size: 11px;
+    }
+
+    .ph-finance-flow {
+      margin-top: 28px;
+      padding: 24px;
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: 20px;
+      background: rgba(255,255,255,.025);
+    }
+
+    .ph-flow-heading {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+    }
+
+    .ph-flow-heading span {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .14em;
+      color: rgba(255,255,255,.38);
+    }
+
+    .ph-flow-heading strong {
+      font-size: 12px;
+      color: rgba(255,255,255,.65);
+    }
+
+    .ph-flow-track {
+      display: grid;
+      grid-template-columns: 1fr 45px 1fr 45px 1fr 45px 1fr;
+      align-items: center;
+      gap: 0;
+    }
+
+    .ph-flow-step {
+      min-height: 145px;
+      padding: 20px;
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: 16px;
+      background: rgba(0,0,0,.16);
+    }
+
+    .ph-flow-number {
+      display: inline-flex;
+      width: 28px;
+      height: 28px;
+      align-items: center;
+      justify-content: center;
+      border-radius: 8px;
+      background: rgba(255,255,255,.07);
+      color: rgba(255,255,255,.65);
+      font-size: 10px;
+      font-weight: 800;
+      margin-bottom: 18px;
+    }
+
+    .ph-flow-step strong {
+      display: block;
+      color: #fff;
+      font-size: 15px;
+      margin-bottom: 7px;
+    }
+
+    .ph-flow-step p {
+      margin: 0;
+      color: rgba(255,255,255,.40);
+      font-size: 11px;
+      line-height: 1.55;
+    }
+
+    .ph-flow-arrow {
+      text-align: center;
+      color: rgba(255,255,255,.25);
+      font-size: 20px;
+    }
+
+    .ph-section-divider {
+      height: 1px;
+      background: rgba(255,255,255,.07);
+      margin: 30px 0;
+    }
+
+    .ph-seller-panel {
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: 20px;
+      overflow: hidden;
+      background: rgba(255,255,255,.025);
+    }
+
+    .ph-seller-head,
+    .ph-seller-row {
+      display: grid;
+      grid-template-columns: 2.1fr 1.1fr 1fr 1fr 1fr;
+      align-items: center;
+      gap: 15px;
+    }
+
+    .ph-seller-head {
+      padding: 13px 20px;
+      background: rgba(255,255,255,.035);
+      border-bottom: 1px solid rgba(255,255,255,.07);
+    }
+
+    .ph-seller-head span {
+      font-size: 9px;
+      letter-spacing: .12em;
+      color: rgba(255,255,255,.35);
+      font-weight: 700;
+    }
+
+    .ph-seller-row {
+      padding: 18px 20px;
+      border-bottom: 1px solid rgba(255,255,255,.055);
+      transition: background .2s ease;
+    }
+
+    .ph-seller-row:last-child {
+      border-bottom: none;
+    }
+
+    .ph-seller-row:hover {
+      background: rgba(255,255,255,.025);
+    }
+
+    .ph-seller {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .ph-avatar {
+      width: 38px;
+      height: 38px;
+      flex: 0 0 38px;
+      border-radius: 11px;
+      display: grid;
+      place-items: center;
+      background: rgba(255,255,255,.07);
+      color: #fff;
+      font-size: 11px;
+      font-weight: 800;
+    }
+
+    .ph-seller-name {
+      min-width: 0;
+    }
+
+    .ph-seller-name strong {
+      display: block;
+      color: #fff;
+      font-size: 13px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .ph-seller-name span {
+      display: block;
+      margin-top: 3px;
+      color: rgba(255,255,255,.36);
+      font-size: 11px;
+    }
+
+    .ph-seller-total strong {
+      color: #fff;
+      font-size: 16px;
+    }
+
+    .ph-seller-metric span {
+      display: block;
+      font-size: 9px;
+      letter-spacing: .10em;
+      color: rgba(255,255,255,.32);
+      margin-bottom: 4px;
+    }
+
+    .ph-seller-metric strong {
+      display: block;
+      font-size: 13px;
+      color: rgba(255,255,255,.78);
+    }
+
+    .ph-seller-metric small {
+      display: block;
+      margin-top: 3px;
+      color: rgba(255,255,255,.32);
+      font-size: 10px;
+    }
+
+    .ph-payout-panel {
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: 20px;
+      overflow: hidden;
+      background: rgba(255,255,255,.025);
+    }
+
+    .ph-payout-row {
+      display: grid;
+      grid-template-columns: .65fr 2.2fr 1fr 1fr 1fr .85fr;
+      align-items: center;
+      gap: 18px;
+      padding: 17px 20px;
+      border-bottom: 1px solid rgba(255,255,255,.055);
+      transition: background .2s ease;
+    }
+
+    .ph-payout-row:last-child {
+      border-bottom: none;
+    }
+
+    .ph-payout-row:hover {
+      background: rgba(255,255,255,.025);
+    }
+
+    .ph-order span,
+    .ph-payout-money span {
+      display: block;
+      font-size: 8px;
+      font-weight: 700;
+      letter-spacing: .11em;
+      color: rgba(255,255,255,.32);
+      margin-bottom: 5px;
+    }
+
+    .ph-order strong {
+      color: #fff;
+      font-size: 13px;
+    }
+
+    .ph-payout-project strong {
+      display: block;
+      color: #fff;
+      font-size: 13px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .ph-payout-project span {
+      display: block;
+      margin-top: 4px;
+      color: rgba(255,255,255,.38);
+      font-size: 10px;
+    }
+
+    .ph-payout-money strong {
+      color: rgba(255,255,255,.78);
+      font-size: 13px;
+    }
+
+    .ph-payout-money.seller strong {
+      color: #fff;
+      font-size: 15px;
+    }
+
+    .ph-status {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: fit-content;
+      min-width: 78px;
+      padding: 7px 10px;
+      border-radius: 999px;
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: .05em;
+    }
+
+    .ph-status.waiting {
+      color: #ffc76a;
+      background: rgba(255,190,70,.09);
+      border: 1px solid rgba(255,190,70,.15);
+    }
+
+    .ph-status.ready {
+      color: #6fdcff;
+      background: rgba(70,190,255,.09);
+      border: 1px solid rgba(70,190,255,.15);
+    }
+
+    .ph-status.released {
+      color: #71e3a5;
+      background: rgba(70,220,140,.09);
+      border: 1px solid rgba(70,220,140,.15);
+    }
+
+    .ph-empty {
+      padding: 48px 20px;
+      text-align: center;
+      color: rgba(255,255,255,.4);
+    }
+
+    .ph-empty-icon {
+      width: 45px;
+      height: 45px;
+      margin: 0 auto 12px;
+      display: grid;
+      place-items: center;
+      border-radius: 13px;
+      background: rgba(255,255,255,.05);
+      color: rgba(255,255,255,.65);
+    }
+
+    .ph-empty strong {
+      display: block;
+      color: rgba(255,255,255,.8);
+      font-size: 14px;
+      margin-bottom: 5px;
+    }
+
+    .ph-empty p {
+      margin: 0;
+      font-size: 11px;
+    }
+
+    @media (max-width: 1050px) {
+      .ph-money-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .ph-finance-strip {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .ph-strip-item:nth-child(2) {
+        border-right: none;
+      }
+
+      .ph-strip-item:nth-child(-n+2) {
+        border-bottom: 1px solid rgba(255,255,255,.07);
+      }
+
+      .ph-flow-track {
+        grid-template-columns: 1fr;
+        gap: 10px;
+      }
+
+      .ph-flow-arrow {
+        transform: rotate(90deg);
+      }
+
+      .ph-seller-panel,
+      .ph-payout-panel {
+        overflow-x: auto;
+      }
+
+      .ph-seller-head,
+      .ph-seller-row {
+        min-width: 850px;
+      }
+
+      .ph-payout-row {
+        min-width: 950px;
+      }
+    }
+
+    @media (max-width: 650px) {
+      .ph-finance-header {
+        flex-direction: column;
+      }
+
+      .ph-commission {
+        width: 100%;
+        text-align: left;
+      }
+
+      .ph-money-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .ph-finance-strip {
+        grid-template-columns: 1fr;
+      }
+
+      .ph-strip-item {
+        border-right: none !important;
+        border-bottom: 1px solid rgba(255,255,255,.07);
+      }
+
+      .ph-strip-item:last-child {
+        border-bottom: none;
+      }
+
+      .ph-finance-flow {
+        padding: 16px;
+      }
+    }
+  `;
 
   if (loading) {
     return (
@@ -597,6 +1519,10 @@ function AdminDashboard() {
   return (
     <div className="admin-page">
 
+      <style>
+        {financialStyles}
+      </style>
+
       {/* =========================
           SIDEBAR
       ========================== */}
@@ -627,6 +1553,29 @@ function AdminDashboard() {
             <span>
               Overview
             </span>
+          </a>
+
+          <a
+            href="#admin-finance"
+            className="admin-nav-item"
+          >
+            <span className="admin-nav-icon">
+              ৳
+            </span>
+
+            <span>
+              Finance
+            </span>
+
+            {financialSummary &&
+              financialSummary.readyToReleaseCount >
+                0 && (
+              <span className="admin-nav-count">
+                {
+                  financialSummary.readyToReleaseCount
+                }
+              </span>
+            )}
           </a>
 
           <a
@@ -755,8 +1704,6 @@ function AdminDashboard() {
 
       <main className="admin-main">
 
-        {/* HEADER */}
-
         <header className="admin-header">
 
           <div>
@@ -771,8 +1718,8 @@ function AdminDashboard() {
 
             <p>
               Manage marketplace activity,
-              members, projects and payments
-              from one place.
+              members, projects, payments
+              and platform finances.
             </p>
 
           </div>
@@ -783,6 +1730,7 @@ function AdminDashboard() {
               type="button"
               className="admin-refresh-button"
               onClick={loadDashboard}
+              disabled={loading}
             >
               ↻ Refresh
             </button>
@@ -942,6 +1890,723 @@ function AdminDashboard() {
 
         </section>
 
+        {/* =====================================================
+            NEW FINANCIAL CONTROL
+        ====================================================== */}
+
+        <section
+          className="admin-section"
+          id="admin-finance"
+        >
+
+          <div className="ph-finance">
+
+            <div className="ph-finance-header">
+
+              <div className="ph-finance-title">
+
+                <span className="admin-section-label">
+                  FINANCIAL CONTROL
+                </span>
+
+                <h2>
+                  Money Flow
+                </h2>
+
+                <p>
+                  A clear view of ProjectHub money:
+                  received from buyers, protected for
+                  active orders, owed to sellers and
+                  earned by the platform.
+                </p>
+
+              </div>
+
+              {financialSummary && (
+                <div className="ph-commission">
+
+                  <span>
+                    PLATFORM COMMISSION
+                  </span>
+
+                  <strong>
+                    {financialSummary.commissionRate}%
+                  </strong>
+
+                </div>
+              )}
+
+            </div>
+
+            <div className="ph-money-grid">
+
+              <div className="ph-money-card received">
+
+                <div className="ph-money-label">
+
+                  <span>
+                    TOTAL RECEIVED
+                  </span>
+
+                  <div className="ph-money-icon">
+                    ↓
+                  </div>
+
+                </div>
+
+                <strong className="ph-money-value">
+                  {formatMoney(
+                    financialSummary?.totalReceived || 0
+                  )}
+                </strong>
+
+                <p className="ph-money-description">
+                  Verified buyer payments
+                </p>
+
+              </div>
+
+              <div className="ph-money-card held">
+
+                <div className="ph-money-label">
+
+                  <span>
+                    MONEY HELD
+                  </span>
+
+                  <div className="ph-money-icon">
+                    ◉
+                  </div>
+
+                </div>
+
+                <strong className="ph-money-value">
+                  {formatMoney(
+                    financialSummary?.totalMoneyHeld || 0
+                  )}
+                </strong>
+
+                <p className="ph-money-description">
+                  Protected funds for active orders
+                </p>
+
+              </div>
+
+              <div className="ph-money-card owed">
+
+                <div className="ph-money-label">
+
+                  <span>
+                    SELLER LIABILITY
+                  </span>
+
+                  <div className="ph-money-icon">
+                    →
+                  </div>
+
+                </div>
+
+                <strong className="ph-money-value">
+                  {formatMoney(
+                    financialSummary?.totalSellerAmount || 0
+                  )}
+                </strong>
+
+                <p className="ph-money-description">
+                  Total amount owed to sellers
+                </p>
+
+              </div>
+
+              <div className="ph-money-card earnings">
+
+                <div className="ph-money-label">
+
+                  <span>
+                    PLATFORM EARNINGS
+                  </span>
+
+                  <div className="ph-money-icon">
+                    +
+                  </div>
+
+                </div>
+
+                <strong className="ph-money-value">
+                  {formatMoney(
+                    financialSummary?.platformEarnings || 0
+                  )}
+                </strong>
+
+                <p className="ph-money-description">
+                  Commission from released orders
+                </p>
+
+              </div>
+
+            </div>
+
+            <div className="ph-finance-strip">
+
+              <div className="ph-strip-item">
+
+                <span>
+                  PENDING VERIFICATION
+                </span>
+
+                <strong>
+                  {formatMoney(
+                    financialSummary?.pendingVerificationAmount ||
+                      0
+                  )}
+                </strong>
+
+                <small>
+                  Awaiting admin verification
+                </small>
+
+              </div>
+
+              <div className="ph-strip-item">
+
+                <span>
+                  WAITING FOR SELLER
+                </span>
+
+                <strong>
+                  {formatMoney(
+                    financialSummary?.waitingSellerAmount ||
+                      0
+                  )}
+                </strong>
+
+                <small>
+                  Seller work in progress
+                </small>
+
+              </div>
+
+              <div className="ph-strip-item">
+
+                <span>
+                  READY TO RELEASE
+                </span>
+
+                <strong>
+                  {formatMoney(
+                    financialSummary?.readySellerAmount ||
+                      0
+                  )}
+                </strong>
+
+                <small>
+                  {financialSummary?.readyToReleaseCount ||
+                    0} payout(s) ready
+                </small>
+
+              </div>
+
+              <div className="ph-strip-item">
+
+                <span>
+                  ALREADY RELEASED
+                </span>
+
+                <strong>
+                  {formatMoney(
+                    financialSummary?.releasedSellerAmount ||
+                      0
+                  )}
+                </strong>
+
+                <small>
+                  {financialSummary?.releasedPayoutCount ||
+                    0} payout(s) completed
+                </small>
+
+              </div>
+
+            </div>
+
+            <div className="ph-finance-flow">
+
+              <div className="ph-flow-heading">
+
+                <span>
+                  TRANSACTION LIFECYCLE
+                </span>
+
+                <strong>
+                  Buyer → ProjectHub → Seller
+                </strong>
+
+              </div>
+
+              <div className="ph-flow-track">
+
+                <div className="ph-flow-step">
+
+                  <span className="ph-flow-number">
+                    01
+                  </span>
+
+                  <strong>
+                    Buyer Payment
+                  </strong>
+
+                  <p>
+                    Buyer submits the full project
+                    amount to ProjectHub.
+                  </p>
+
+                </div>
+
+                <div className="ph-flow-arrow">
+                  →
+                </div>
+
+                <div className="ph-flow-step">
+
+                  <span className="ph-flow-number">
+                    02
+                  </span>
+
+                  <strong>
+                    Payment Held
+                  </strong>
+
+                  <p>
+                    Admin verifies the payment and
+                    ProjectHub protects the funds.
+                  </p>
+
+                </div>
+
+                <div className="ph-flow-arrow">
+                  →
+                </div>
+
+                <div className="ph-flow-step">
+
+                  <span className="ph-flow-number">
+                    03
+                  </span>
+
+                  <strong>
+                    Seller Completion
+                  </strong>
+
+                  <p>
+                    Seller completes the work and
+                    buyer confirms delivery.
+                  </p>
+
+                </div>
+
+                <div className="ph-flow-arrow">
+                  →
+                </div>
+
+                <div className="ph-flow-step">
+
+                  <span className="ph-flow-number">
+                    04
+                  </span>
+
+                  <strong>
+                    Seller Release
+                  </strong>
+
+                  <p>
+                    Seller receives their amount and
+                    ProjectHub keeps the commission.
+                  </p>
+
+                </div>
+
+              </div>
+
+            </div>
+
+          </div>
+
+        </section>
+
+        {/* =====================================================
+            SELLER LIABILITY
+        ====================================================== */}
+
+        <section className="admin-section">
+
+          <div className="admin-section-heading">
+
+            <div>
+
+              <span className="admin-section-label">
+                SELLER LIABILITY
+              </span>
+
+              <h2>
+                Seller Payments
+              </h2>
+
+              <p>
+                See exactly how much ProjectHub
+                currently owes each seller.
+              </p>
+
+            </div>
+
+          </div>
+
+          {sellerFinancialSummary.length ===
+          0 ? (
+
+            <div className="ph-seller-panel">
+
+              <div className="ph-empty">
+
+                <div className="ph-empty-icon">
+                  ৳
+                </div>
+
+                <strong>
+                  No seller liabilities
+                </strong>
+
+                <p>
+                  Seller payout information will
+                  appear here when buyers place orders.
+                </p>
+
+              </div>
+
+            </div>
+
+          ) : (
+
+            <div className="ph-seller-panel">
+
+              <div className="ph-seller-head">
+
+                <span>
+                  SELLER
+                </span>
+
+                <span>
+                  TOTAL OWED
+                </span>
+
+                <span>
+                  WAITING
+                </span>
+
+                <span>
+                  READY
+                </span>
+
+                <span>
+                  RELEASED
+                </span>
+
+              </div>
+
+              {sellerFinancialSummary.map(
+                (seller) => (
+
+                  <div
+                    className="ph-seller-row"
+                    key={seller.sellerId}
+                  >
+
+                    <div className="ph-seller">
+
+                      <div className="ph-avatar">
+                        {getInitials(
+                          seller.sellerName
+                        )}
+                      </div>
+
+                      <div className="ph-seller-name">
+
+                        <strong>
+                          {seller.sellerName}
+                        </strong>
+
+                        <span>
+                          @{seller.sellerUsername}
+                        </span>
+
+                      </div>
+
+                    </div>
+
+                    <div className="ph-seller-total">
+
+                      <strong>
+                        {formatMoney(
+                          seller.totalOwed
+                        )}
+                      </strong>
+
+                    </div>
+
+                    <div className="ph-seller-metric">
+
+                      <span>
+                        IN PROGRESS
+                      </span>
+
+                      <strong>
+                        {formatMoney(
+                          seller.waitingAmount
+                        )}
+                      </strong>
+
+                      <small>
+                        {seller.waitingOrders} order(s)
+                      </small>
+
+                    </div>
+
+                    <div className="ph-seller-metric">
+
+                      <span>
+                        READY
+                      </span>
+
+                      <strong>
+                        {formatMoney(
+                          seller.readyAmount
+                        )}
+                      </strong>
+
+                      <small>
+                        {seller.readyOrders} order(s)
+                      </small>
+
+                    </div>
+
+                    <div className="ph-seller-metric">
+
+                      <span>
+                        PAID
+                      </span>
+
+                      <strong>
+                        {formatMoney(
+                          seller.releasedAmount
+                        )}
+                      </strong>
+
+                      <small>
+                        {seller.releasedOrders} order(s)
+                      </small>
+
+                    </div>
+
+                  </div>
+
+                )
+              )}
+
+            </div>
+
+          )}
+
+        </section>
+
+        {/* =====================================================
+            PAYOUT TRACKING
+        ====================================================== */}
+
+        <section className="admin-section">
+
+          <div className="admin-section-heading">
+
+            <div>
+
+              <span className="admin-section-label">
+                PAYOUT TRACKING
+              </span>
+
+              <h2>
+                Seller Payout Details
+              </h2>
+
+              <p>
+                Follow each seller payment from
+                order creation to final release.
+              </p>
+
+            </div>
+
+          </div>
+
+          {sellerPayouts.length ===
+          0 ? (
+
+            <div className="ph-payout-panel">
+
+              <div className="ph-empty">
+
+                <div className="ph-empty-icon">
+                  →
+                </div>
+
+                <strong>
+                  No payout records
+                </strong>
+
+                <p>
+                  Payout records will be created
+                  automatically for verified orders.
+                </p>
+
+              </div>
+
+            </div>
+
+          ) : (
+
+            <div className="ph-payout-panel">
+
+              {sellerPayouts
+                .slice(0, 10)
+                .map(
+                  (payout) => {
+
+                    /*
+                     * SAFE STATUS HANDLING
+                     *
+                     * Previously:
+                     * payout.payoutStatus.toLowerCase()
+                     *
+                     * If payoutStatus was undefined,
+                     * React crashed and the entire page
+                     * became white.
+                     */
+                    const payoutStatus =
+                      String(
+                        payout.payoutStatus ||
+                          "waiting"
+                      )
+                        .trim()
+                        .toLowerCase();
+
+                    const statusClass =
+                      payoutStatus ===
+                      "released"
+                        ? "released"
+                        : payoutStatus ===
+                          "ready"
+                        ? "ready"
+                        : "waiting";
+
+                    const displayStatus =
+                      payout.payoutStatus ||
+                      "Waiting";
+
+                    return (
+                      <div
+                        className="ph-payout-row"
+                        key={payout.id}
+                      >
+
+                        <div className="ph-order">
+
+                          <span>
+                            ORDER
+                          </span>
+
+                          <strong>
+                            #{payout.orderId}
+                          </strong>
+
+                        </div>
+
+                        <div className="ph-payout-project">
+
+                          <strong>
+                            {payout.projectTitle ||
+                              "Untitled Project"}
+                          </strong>
+
+                          <span>
+                            {payout.sellerName ||
+                              "Unknown Seller"}
+                            {" · "}
+                            @{payout.sellerUsername ||
+                              "unknown"}
+                          </span>
+
+                        </div>
+
+                        <div className="ph-payout-money">
+
+                          <span>
+                            PLATFORM
+                          </span>
+
+                          <strong>
+                            {formatMoney(
+                              payout.commissionAmount
+                            )}
+                          </strong>
+
+                        </div>
+
+                        <div className="ph-payout-money">
+
+                          <span>
+                            PROJECT VALUE
+                          </span>
+
+                          <strong>
+                            {formatMoney(
+                              payout.projectPrice
+                            )}
+                          </strong>
+
+                        </div>
+
+                        <div className="ph-payout-money seller">
+
+                          <span>
+                            SELLER
+                          </span>
+
+                          <strong>
+                            {formatMoney(
+                              payout.payoutAmount ??
+                                payout.sellerAmount ??
+                                0
+                            )}
+                          </strong>
+
+                        </div>
+
+                        <div>
+
+                          <span
+                            className={`ph-status ${statusClass}`}
+                          >
+                            {displayStatus}
+                          </span>
+
+                        </div>
+
+                      </div>
+                    );
+                  }
+                )}
+
+            </div>
+
+          )}
+
+        </section>
+
         {/* =========================
             COMMUNITY OVERVIEW
         ========================== */}
@@ -973,6 +2638,7 @@ function AdminDashboard() {
               </div>
 
               <div>
+
                 <strong>
                   Active Members
                 </strong>
@@ -980,6 +2646,7 @@ function AdminDashboard() {
                 <span>
                   Currently active accounts
                 </span>
+
               </div>
 
             </div>
@@ -991,6 +2658,7 @@ function AdminDashboard() {
               </div>
 
               <div>
+
                 <strong>
                   Verified
                 </strong>
@@ -998,6 +2666,7 @@ function AdminDashboard() {
                 <span>
                   Approved member accounts
                 </span>
+
               </div>
 
             </div>
@@ -1009,6 +2678,7 @@ function AdminDashboard() {
               </div>
 
               <div>
+
                 <strong>
                   Sellers
                 </strong>
@@ -1016,6 +2686,7 @@ function AdminDashboard() {
                 <span>
                   Members offering projects
                 </span>
+
               </div>
 
             </div>
@@ -1027,6 +2698,7 @@ function AdminDashboard() {
               </div>
 
               <div>
+
                 <strong>
                   Buyers
                 </strong>
@@ -1034,6 +2706,7 @@ function AdminDashboard() {
                 <span>
                   Members purchasing projects
                 </span>
+
               </div>
 
             </div>
@@ -1309,8 +2982,6 @@ function AdminDashboard() {
 
           </div>
 
-          {/* PROJECT APPROVAL CENTER */}
-
           <AdminProjectApproval
             projects={projects}
             onRefresh={loadDashboard}
@@ -1332,12 +3003,17 @@ function AdminDashboard() {
             <div>
 
               <span className="admin-section-label">
-                FINANCIAL CONTROL
+                PAYMENT VERIFICATION
               </span>
 
               <h2>
                 Recent Pending Payments
               </h2>
+
+              <p>
+                Review submitted payments and
+                confirm successful transactions.
+              </p>
 
             </div>
 
@@ -1377,61 +3053,109 @@ function AdminDashboard() {
               {pendingPayments
                 .slice(0, 5)
                 .map(
-                  (payment) => (
-                    <div
-                      className="admin-payment-row"
-                      key={payment.id}
-                    >
+                  (payment) => {
 
-                      <div className="admin-payment-id">
-                        #{payment.id}
+                    const isProcessing =
+                      processingPaymentId ===
+                      payment.id;
+
+                    return (
+                      <div
+                        className="admin-payment-row"
+                        key={payment.id}
+                      >
+
+                        <div className="admin-payment-id">
+                          #{payment.id}
+                        </div>
+
+                        <div className="admin-payment-info">
+
+                          <strong>
+                            {payment.projectTitle}
+                          </strong>
+
+                          <span>
+                            Order #{payment.orderId}
+                            {" · "}
+                            {payment.buyerName}
+                          </span>
+
+                          {payment.transactionId && (
+                            <small>
+                              TXN:{" "}
+                              {payment.transactionId}
+                            </small>
+                          )}
+
+                        </div>
+
+                        <div className="admin-payment-method">
+
+                          <span>
+                            METHOD
+                          </span>
+
+                          <strong>
+                            {payment.paymentMethod}
+                          </strong>
+
+                        </div>
+
+                        <div className="admin-payment-amount">
+
+                          <span>
+                            AMOUNT
+                          </span>
+
+                          <strong>
+                            ৳
+                            {payment.amount.toLocaleString()}
+                          </strong>
+
+                        </div>
+
+                        <div className="admin-payment-status">
+                          Pending
+                        </div>
+
+                        <div className="admin-payment-actions">
+
+                          <button
+                            type="button"
+                            className="admin-payment-verify"
+                            disabled={isProcessing}
+                            onClick={() =>
+                              handlePaymentAction(
+                                payment.id,
+                                "verify"
+                              )
+                            }
+                          >
+                            {isProcessing
+                              ? "Processing..."
+                              : "✓ Verify"}
+                          </button>
+
+                          <button
+                            type="button"
+                            className="admin-payment-reject"
+                            disabled={isProcessing}
+                            onClick={() =>
+                              handlePaymentAction(
+                                payment.id,
+                                "reject"
+                              )
+                            }
+                          >
+                            Reject
+                          </button>
+
+                        </div>
+
                       </div>
-
-                      <div className="admin-payment-info">
-
-                        <strong>
-                          {payment.projectTitle}
-                        </strong>
-
-                        <span>
-                          Order #{payment.orderId}
-                          {" · "}
-                          {payment.buyerName}
-                        </span>
-
-                      </div>
-
-                      <div className="admin-payment-method">
-
-                        <span>
-                          METHOD
-                        </span>
-
-                        <strong>
-                          {payment.paymentMethod}
-                        </strong>
-
-                      </div>
-
-                      <div className="admin-payment-amount">
-
-                        <span>
-                          AMOUNT
-                        </span>
-
-                        <strong>
-                          ৳
-                          {payment.amount.toLocaleString()}
-                        </strong>
-
-                      </div>
-
-                      <div className="admin-payment-status">
-                        Pending
-                      </div>
-
-                    </div>
-                  )
+                    );
+                  }
                 )}
 
             </div>
@@ -1481,8 +3205,6 @@ function AdminDashboard() {
             </div>
 
           </div>
-
-          {/* SEARCH + FILTER */}
 
           <div className="admin-user-toolbar">
 
@@ -1558,13 +3280,12 @@ function AdminDashboard() {
                 <option value="seller">
                   Sellers
                 </option>
+
               </select>
 
             </div>
 
           </div>
-
-          {/* RESULT BAR */}
 
           <div className="admin-user-result-bar">
 
@@ -1609,8 +3330,6 @@ function AdminDashboard() {
 
           </div>
 
-          {/* USER LIST */}
-
           {paginatedUsers.length ===
           0 ? (
 
@@ -1643,7 +3362,8 @@ function AdminDashboard() {
                     user.id;
 
                   const isAdmin =
-                    user.role.toLowerCase() ===
+                    (user.role || "")
+                      .toLowerCase() ===
                     "admin";
 
                   return (
@@ -1655,8 +3375,6 @@ function AdminDashboard() {
                           : "admin-user-card"
                       }
                     >
-
-                      {/* COMPACT ROW */}
 
                       <div className="admin-user-main">
 
@@ -1685,7 +3403,7 @@ function AdminDashboard() {
                           </span>
 
                           <strong>
-                            {user.role}
+                            {user.role || "—"}
                           </strong>
 
                         </div>
@@ -1749,8 +3467,6 @@ function AdminDashboard() {
                         </button>
 
                       </div>
-
-                      {/* EXPANDED DETAILS */}
 
                       {isExpanded && (
 
@@ -1958,8 +3674,6 @@ function AdminDashboard() {
             </div>
 
           )}
-
-          {/* PAGINATION */}
 
           {filteredUsers.length >
             USERS_PER_PAGE && (
@@ -2207,10 +3921,35 @@ function AdminDashboard() {
 
             </div>
 
-            <div className="admin-roadmap-item">
+            <div className="admin-roadmap-item active">
 
               <span>
                 04
+              </span>
+
+              <div>
+
+                <strong>
+                  Financial Management
+                </strong>
+
+                <p>
+                  Track received funds, seller
+                  liabilities and platform earnings.
+                </p>
+
+              </div>
+
+              <b>
+                ACTIVE
+              </b>
+
+            </div>
+
+            <div className="admin-roadmap-item">
+
+              <span>
+                05
               </span>
 
               <div>
@@ -2235,7 +3974,32 @@ function AdminDashboard() {
             <div className="admin-roadmap-item">
 
               <span>
-                05
+                06
+              </span>
+
+              <div>
+
+                <strong>
+                  Seller Payouts
+                </strong>
+
+                <p>
+                  Release completed seller
+                  payments.
+                </p>
+
+              </div>
+
+              <b>
+                SOON
+              </b>
+
+            </div>
+
+            <div className="admin-roadmap-item">
+
+              <span>
+                07
               </span>
 
               <div>
@@ -2260,7 +4024,7 @@ function AdminDashboard() {
             <div className="admin-roadmap-item">
 
               <span>
-                06
+                08
               </span>
 
               <div>
@@ -2311,3 +4075,4 @@ function AdminDashboard() {
 }
 
 export default AdminDashboard;
+
