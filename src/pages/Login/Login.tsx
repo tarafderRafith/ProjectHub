@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import "./Login.css";
@@ -78,7 +77,23 @@ function Login() {
 
       console.log("Login successful:", result);
 
-      navigate("/dashboard");
+      /*
+        Redirect based on user role.
+
+        Admin  -> Admin Dashboard
+        Buyer  -> Normal Dashboard
+        Seller -> Normal Dashboard
+      */
+
+      if (
+        result.role &&
+        result.role.toLowerCase() === "admin"
+      ) {
+        navigate("/admin");
+      } else {
+        navigate("/dashboard");
+      }
+
     } catch (error) {
       if (error instanceof Error) {
         setError(error.message);
@@ -359,4 +374,3 @@ function Login() {
 }
 
 export default Login;
-
