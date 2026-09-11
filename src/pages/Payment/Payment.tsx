@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import Navbar from "../../components/layout/Navbar";
@@ -6,23 +7,35 @@ import { getOrderById } from "../../services/orderService";
 import { submitPayment } from "../../services/paymentService";
 import "./Payment.css";
 
+interface PaymentOrder {
+  id: number;
+  projectId: number;
+  projectTitle: string;
+  projectPrice: number;
+  status: string;
+}
+
 function Payment() {
   const { orderId } = useParams();
   const navigate = useNavigate();
 
-  const [order, setOrder] = useState<{
-    id: number;
-    projectId: number;
-    projectTitle: string;
-    projectPrice: number;
-    status: string;
-  } | null>(null);
+  const [order, setOrder] =
+    useState<PaymentOrder | null>(null);
 
-  const [transactionId, setTransactionId] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState(false);
+  const [transactionId, setTransactionId] =
+    useState("");
+
+  const [loading, setLoading] =
+    useState(true);
+
+  const [submitting, setSubmitting] =
+    useState(false);
+
+  const [error, setError] =
+    useState("");
+
+  const [success, setSuccess] =
+    useState(false);
 
   useEffect(() => {
     const loadOrder = async () => {
@@ -34,9 +47,18 @@ function Payment() {
           throw new Error("Invalid order.");
         }
 
-        const result = await getOrderById(
-          Number(orderId)
-        );
+        const numericOrderId =
+          Number(orderId);
+
+        if (
+          !Number.isInteger(numericOrderId) ||
+          numericOrderId <= 0
+        ) {
+          throw new Error("Invalid order ID.");
+        }
+
+        const result =
+          await getOrderById(numericOrderId);
 
         setOrder({
           id: result.id,
@@ -45,6 +67,28 @@ function Payment() {
           projectPrice: result.projectPrice,
           status: result.status,
         });
+
+        /*
+          If the order already has a payment-related
+          status, don't show the payment form again.
+        */
+        const normalizedStatus =
+          String(result.status || "")
+            .trim()
+            .toLowerCase();
+
+        if (
+          normalizedStatus ===
+            "payment submitted" ||
+          normalizedStatus ===
+            "pending verification" ||
+          normalizedStatus ===
+            "payment held" ||
+          normalizedStatus ===
+            "completed"
+        ) {
+          setSuccess(true);
+        }
       } catch (err) {
         setError(
           err instanceof Error
@@ -59,15 +103,40 @@ function Payment() {
     loadOrder();
   }, [orderId]);
 
+  const handleTransactionChange = (
+    value: string
+  ) => {
+    /*
+      Remove accidental spaces at the beginning
+      and end while typing.
+    */
+    setTransactionId(value);
+    setError("");
+  };
+
   const handleSubmitPayment = async () => {
     if (!order) {
       return;
     }
 
-    if (!transactionId.trim()) {
+    const cleanedTransactionId =
+      transactionId.trim();
+
+    if (!cleanedTransactionId) {
       setError(
         "Please enter your bKash Transaction ID."
       );
+      return;
+    }
+
+    if (cleanedTransactionId.length < 5) {
+      setError(
+        "Please enter a valid bKash Transaction ID."
+      );
+      return;
+    }
+
+    if (submitting) {
       return;
     }
 
@@ -77,7 +146,8 @@ function Payment() {
 
       await submitPayment({
         orderId: order.id,
-        transactionId: transactionId.trim(),
+        transactionId:
+          cleanedTransactionId,
       });
 
       setSuccess(true);
@@ -92,6 +162,10 @@ function Payment() {
     }
   };
 
+  const handleBackToOrders = () => {
+    navigate("/orders");
+  };
+
   if (loading) {
     return (
       <>
@@ -100,7 +174,18 @@ function Payment() {
         <main className="payment-page">
           <div className="payment-container">
             <div className="payment-loading">
-              Loading payment details...
+              <div className="payment-loading-icon">
+                ◌
+              </div>
+
+              <h2>
+                Loading payment details...
+              </h2>
+
+              <p>
+                Please wait while we load your
+                order information.
+              </p>
             </div>
           </div>
         </main>
@@ -116,15 +201,37 @@ function Payment() {
         <main className="payment-page">
           <div className="payment-container">
             <div className="payment-error-card">
-              <span>!</span>
+              <div className="payment-error-icon">
+                !
+              </div>
 
-              <h1>Unable to load payment</h1>
+              <span className="payment-step">
+                PAYMENT ERROR
+              </span>
+
+              <h1>
+                Unable to load payment
+              </h1>
 
               <p>{error}</p>
 
-              <Link to="/orders">
-                Back to Orders
-              </Link>
+              <div className="payment-error-actions">
+                <Button
+                  size="large"
+                  onClick={
+                    handleBackToOrders
+                  }
+                >
+                  Back to Orders
+                </Button>
+
+                <Link
+                  to="/projects"
+                  className="payment-back-link"
+                >
+                  Browse Projects
+                </Link>
+              </div>
             </div>
           </div>
         </main>
@@ -135,6 +242,12 @@ function Payment() {
   if (!order) {
     return null;
   }
+
+  /*
+    =========================
+    PAYMENT SUCCESS
+    =========================
+  */
 
   if (success) {
     return (
@@ -152,43 +265,130 @@ function Payment() {
                 PAYMENT SUBMITTED
               </span>
 
-              <h1>Payment submitted</h1>
+              <h1>
+                Payment submitted
+              </h1>
 
               <p>
-                Your bKash payment has been submitted
-                successfully and is waiting for admin
-                verification.
+                Your bKash payment has been
+                submitted successfully. ProjectHub
+                will verify the transaction before
+                the order moves forward.
               </p>
+
+              <div className="payment-progress">
+                <div className="payment-progress-item active">
+                  <span>✓</span>
+
+                  <div>
+                    <strong>
+                      Payment Submitted
+                    </strong>
+
+                    <small>
+                      Transaction received
+                    </small>
+                  </div>
+                </div>
+
+                <div className="payment-progress-line"></div>
+
+                <div className="payment-progress-item">
+                  <span>02</span>
+
+                  <div>
+                    <strong>
+                      Verification
+                    </strong>
+
+                    <small>
+                      ProjectHub checks payment
+                    </small>
+                  </div>
+                </div>
+
+                <div className="payment-progress-line"></div>
+
+                <div className="payment-progress-item">
+                  <span>03</span>
+
+                  <div>
+                    <strong>
+                      Payment Held
+                    </strong>
+
+                    <small>
+                      Order can move forward
+                    </small>
+                  </div>
+                </div>
+              </div>
 
               <div className="payment-success-details">
                 <div>
                   <span>Order ID</span>
-                  <strong>#{order.id}</strong>
+
+                  <strong>
+                    #{order.id}
+                  </strong>
+                </div>
+
+                <div>
+                  <span>Project</span>
+
+                  <strong>
+                    {order.projectTitle}
+                  </strong>
                 </div>
 
                 <div>
                   <span>Amount</span>
+
                   <strong>
-                    ৳{order.projectPrice.toLocaleString()}
+                    ৳
+                    {order.projectPrice.toLocaleString()}
                   </strong>
                 </div>
 
                 <div>
                   <span>Payment Method</span>
-                  <strong>bKash</strong>
+
+                  <strong>
+                    bKash
+                  </strong>
                 </div>
 
                 <div>
                   <span>Status</span>
-                  <strong>Pending Verification</strong>
+
+                  <strong>
+                    Pending Verification
+                  </strong>
+                </div>
+              </div>
+
+              <div className="payment-success-notice">
+                <span>✓</span>
+
+                <div>
+                  <strong>
+                    What happens next?
+                  </strong>
+
+                  <p>
+                    After the payment is verified,
+                    your order can move to the next
+                    stage and the protected buyer
+                    and seller workflow will continue.
+                  </p>
                 </div>
               </div>
 
               <div className="payment-success-actions">
                 <Button
                   size="large"
-                  onClick={() =>
-                    navigate("/orders")
+                  onClick={
+                    handleBackToOrders
                   }
                 >
                   View My Orders
@@ -208,6 +408,12 @@ function Payment() {
     );
   }
 
+  /*
+    =========================
+    PAYMENT FORM
+    =========================
+  */
+
   return (
     <>
       <Navbar />
@@ -226,23 +432,42 @@ function Payment() {
               SECURE PAYMENT
             </span>
 
-            <h1>Complete your payment</h1>
+            <h1>
+              Complete your payment
+            </h1>
 
             <p>
-              Complete the bKash payment and submit your
-              transaction ID for verification.
+              Pay through bKash and submit your
+              transaction ID. Your payment will be
+              verified before the order continues.
             </p>
           </div>
 
           <div className="payment-layout">
             <section className="payment-main-card">
+              {/* =========================
+                  BKASH HEADER
+              ========================= */}
+
               <div className="bkash-header">
                 <div className="bkash-logo">
                   bKash
                 </div>
 
-                <span>Manual Payment</span>
+                <div className="bkash-method">
+                  <strong>
+                    Manual Payment
+                  </strong>
+
+                  <span>
+                    Secure transaction submission
+                  </span>
+                </div>
               </div>
+
+              {/* =========================
+                  STEP 01
+              ========================= */}
 
               <div className="payment-instruction">
                 <span className="instruction-number">
@@ -250,33 +475,62 @@ function Payment() {
                 </span>
 
                 <div>
-                  <h3>Send the exact amount</h3>
+                  <h3>
+                    Send the exact amount
+                  </h3>
 
                   <p>
-                    Pay the amount shown below to the
-                    ProjectHub bKash number.
+                    Send the exact project price to
+                    the ProjectHub bKash number below.
                   </p>
                 </div>
               </div>
 
               <div className="bkash-number-card">
-                <span>bKash Number</span>
+                <div>
+                  <span>
+                    ProjectHub bKash Number
+                  </span>
 
-                <strong>01788151272</strong>
+                  <strong>
+                    01788151272
+                  </strong>
+                </div>
+
+                <div className="bkash-number-badge">
+                  bKash
+                </div>
 
                 <small>
-                  Please make sure the number is correct
-                  before sending the payment.
+                  Double-check the number before
+                  confirming your bKash payment.
                 </small>
               </div>
 
+              {/* =========================
+                  AMOUNT
+              ========================= */}
+
               <div className="amount-card">
-                <span>Amount to pay</span>
+                <div>
+                  <span>
+                    Amount to pay
+                  </span>
+
+                  <small>
+                    Order #{order.id}
+                  </small>
+                </div>
 
                 <strong>
-                  ৳{order.projectPrice.toLocaleString()}
+                  ৳
+                  {order.projectPrice.toLocaleString()}
                 </strong>
               </div>
+
+              {/* =========================
+                  STEP 02
+              ========================= */}
 
               <div className="payment-instruction">
                 <span className="instruction-number">
@@ -284,14 +538,30 @@ function Payment() {
                 </span>
 
                 <div>
-                  <h3>Complete your bKash payment</h3>
+                  <h3>
+                    Complete your bKash payment
+                  </h3>
 
                   <p>
-                    After completing the payment, keep
-                    your bKash transaction ID.
+                    Complete the payment from your
+                    bKash account and keep the
+                    transaction confirmation.
                   </p>
                 </div>
               </div>
+
+              <div className="payment-tip">
+                <span>i</span>
+
+                <p>
+                  Make sure the amount you send
+                  matches the amount shown above.
+                </p>
+              </div>
+
+              {/* =========================
+                  STEP 03
+              ========================= */}
 
               <div className="payment-instruction">
                 <span className="instruction-number">
@@ -299,11 +569,14 @@ function Payment() {
                 </span>
 
                 <div>
-                  <h3>Enter your Transaction ID</h3>
+                  <h3>
+                    Enter your Transaction ID
+                  </h3>
 
                   <p>
-                    Enter the transaction ID exactly as
-                    shown in your bKash payment confirmation.
+                    Enter the transaction ID exactly
+                    as shown in your bKash payment
+                    confirmation.
                   </p>
                 </div>
               </div>
@@ -318,26 +591,47 @@ function Payment() {
                   type="text"
                   value={transactionId}
                   onChange={(event) =>
-                    setTransactionId(
+                    handleTransactionChange(
                       event.target.value
                     )
                   }
                   placeholder="Enter your bKash TrxID"
+                  autoComplete="off"
                   disabled={submitting}
                 />
+
+                <div className="transaction-field-info">
+                  <span>
+                    Transaction ID
+                  </span>
+
+                  <span>
+                    {transactionId.length} characters
+                  </span>
+                </div>
               </div>
 
               {error && (
-                <div className="payment-error">
-                  {error}
+                <div
+                  className="payment-error"
+                  role="alert"
+                >
+                  <span>!</span>
+
+                  <p>{error}</p>
                 </div>
               )}
 
               <Button
                 size="large"
                 fullWidth
-                onClick={handleSubmitPayment}
-                disabled={submitting}
+                onClick={
+                  handleSubmitPayment
+                }
+                disabled={
+                  submitting ||
+                  !transactionId.trim()
+                }
               >
                 {submitting
                   ? "Submitting Payment..."
@@ -348,34 +642,51 @@ function Payment() {
                 <span>✓</span>
 
                 <p>
-                  Your payment will remain pending until
-                  ProjectHub verifies the transaction.
+                  Your payment stays pending until
+                  ProjectHub verifies the submitted
+                  transaction.
                 </p>
               </div>
             </section>
+
+            {/* =========================
+                ORDER SUMMARY
+            ========================= */}
 
             <aside className="payment-summary-card">
               <span className="summary-label">
                 ORDER SUMMARY
               </span>
 
-              <h2>{order.projectTitle}</h2>
+              <h2>
+                {order.projectTitle}
+              </h2>
+
+              <div className="summary-order-id">
+                Order #{order.id}
+              </div>
 
               <div className="summary-row">
-                <span>Project price</span>
+                <span>
+                  Project price
+                </span>
 
                 <strong>
-                  ৳{order.projectPrice.toLocaleString()}
+                  ৳
+                  {order.projectPrice.toLocaleString()}
                 </strong>
               </div>
 
               <div className="summary-divider"></div>
 
               <div className="summary-total">
-                <span>Total to pay</span>
+                <span>
+                  Total to pay
+                </span>
 
                 <strong>
-                  ৳{order.projectPrice.toLocaleString()}
+                  ৳
+                  {order.projectPrice.toLocaleString()}
                 </strong>
               </div>
 
@@ -383,14 +694,49 @@ function Payment() {
                 <span>✓</span>
 
                 <div>
-                  <strong>Payment protection</strong>
+                  <strong>
+                    Payment protection
+                  </strong>
 
                   <p>
-                    Payment remains pending until your
-                    transaction is verified.
+                    Payment remains pending until
+                    the transaction is verified.
                   </p>
                 </div>
               </div>
+
+              <div className="summary-flow">
+                <div className="summary-flow-item active">
+                  <span>01</span>
+
+                  <p>
+                    Payment submitted
+                  </p>
+                </div>
+
+                <div className="summary-flow-item">
+                  <span>02</span>
+
+                  <p>
+                    Payment verified
+                  </p>
+                </div>
+
+                <div className="summary-flow-item">
+                  <span>03</span>
+
+                  <p>
+                    Order continues
+                  </p>
+                </div>
+              </div>
+
+              <Link
+                to={`/projects/${order.projectId}`}
+                className="summary-project-link"
+              >
+                View Project →
+              </Link>
             </aside>
           </div>
         </div>
@@ -400,3 +746,4 @@ function Payment() {
 }
 
 export default Payment;
+
