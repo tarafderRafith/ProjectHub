@@ -1,3 +1,4 @@
+
 .project-details-page {
   min-height: 100vh;
   background: #f8fafc;
@@ -220,14 +221,18 @@
     0 4px 12px rgba(15, 23, 42, 0.03);
 }
 
+/* =========================
+   PROJECT PREVIEW
+========================= */
+
 .project-preview {
   position: relative;
 
-  height: 190px;
+  height: 220px;
 
   display: flex;
-  align-items: center;
-  justify-content: center;
+  align-items: flex-end;
+  justify-content: flex-start;
 
   overflow: hidden;
 
@@ -240,9 +245,74 @@
     );
 }
 
+/* =========================
+   REAL PROJECT IMAGE
+========================= */
+
+.project-preview-image {
+  position: absolute;
+
+  inset: 0;
+
+  width: 100%;
+  height: 100%;
+
+  display: block;
+
+  object-fit: cover;
+
+  object-position: center;
+
+  z-index: 1;
+
+  transition:
+    transform 0.5s ease,
+    filter 0.5s ease;
+}
+
+/*
+   Small zoom effect when hovering
+   over the project preview.
+*/
+
+.project-preview:hover .project-preview-image {
+  transform: scale(1.04);
+
+  filter: brightness(0.9);
+}
+
+/* =========================
+   IMAGE OVERLAY
+========================= */
+
+.project-preview-overlay {
+  position: absolute;
+
+  inset: 0;
+
+  z-index: 2;
+
+  pointer-events: none;
+
+  background:
+    linear-gradient(
+      to bottom,
+      rgba(15, 23, 42, 0.02) 20%,
+      rgba(15, 23, 42, 0.18) 50%,
+      rgba(15, 23, 42, 0.75) 100%
+    );
+}
+
+/* =========================
+   FALLBACK GRID
+========================= */
+
 .preview-grid {
   position: absolute;
+
   inset: 0;
+
+  z-index: 0;
 
   opacity: 0.16;
 
@@ -259,12 +329,24 @@
 
   background-size: 24px 24px;
 
-  transform: perspective(400px) rotateX(50deg) scale(1.5);
+  transform:
+    perspective(400px)
+    rotateX(50deg)
+    scale(1.5);
 }
 
-.project-preview span {
+/* =========================
+   PREVIEW LABEL
+========================= */
+
+.project-preview-label {
   position: relative;
-  z-index: 1;
+
+  z-index: 3;
+
+  display: inline-flex;
+
+  margin: 0 18px 17px;
 
   padding: 9px 13px;
 
@@ -278,7 +360,24 @@
   font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.1em;
+
+  backdrop-filter: blur(5px);
 }
+
+/*
+   This keeps compatibility with the old
+   JSX selector if any other span exists.
+*/
+
+.project-preview > span {
+  position: relative;
+
+  z-index: 3;
+}
+
+/* =========================
+   PURCHASE CONTENT
+========================= */
 
 .purchase-content {
   padding: 25px;
@@ -861,6 +960,7 @@
 
   .details-meta div {
     border-right: none;
+
     border-bottom: 1px solid #e2e8f0;
   }
 
@@ -869,7 +969,16 @@
   }
 
   .project-preview {
-    height: 160px;
+    height: 190px;
+  }
+
+  .project-preview-label {
+    margin-left: 15px;
+    margin-bottom: 14px;
+
+    padding: 8px 11px;
+
+    font-size: 10px;
   }
 
   .project-details-content {
@@ -878,6 +987,7 @@
 
   .seller-card {
     align-items: flex-start;
+
     flex-direction: column;
   }
 
@@ -891,8 +1001,10 @@
 
   .reviews-heading {
     align-items: flex-start;
+
     flex-direction: column;
 
     gap: 15px;
   }
 }
+

@@ -16,6 +16,7 @@ import SellerProjectCreate from "./pages/SellerProjectCreate/CreateProject";
 import SellerProjectEdit from "./pages/SellerProjectEdit/SellerProjectEdit";
 import Payment from "./pages/Payment/Payment";
 import AdminDashboard from "./pages/AdminDashboard/AdminDashboard";
+import Messages from "./pages/Messages/Messages";
 
 function App() {
   return (
@@ -75,6 +76,11 @@ function App() {
         <Route
           path="/payment/:orderId"
           element={<Payment />}
+        />
+
+        <Route
+          path="/messages"
+          element={<Messages />}
         />
 
         <Route

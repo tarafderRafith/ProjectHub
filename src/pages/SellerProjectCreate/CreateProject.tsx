@@ -1,3 +1,4 @@
+
 import {
   useState,
 } from "react";
@@ -26,6 +27,9 @@ interface ProjectFormData {
   imageUrl: string;
   isAvailable: boolean;
 }
+
+const API_BASE_URL =
+  "http://localhost:5038";
 
 const availableDeliverables = [
   "Source Code",
@@ -59,7 +63,16 @@ const CreateProject = () => {
       isAvailable: true,
     });
 
+  const [selectedImage, setSelectedImage] =
+    useState<File | null>(null);
+
+  const [imagePreview, setImagePreview] =
+    useState("");
+
   const [isSubmitting, setIsSubmitting] =
+    useState(false);
+
+  const [uploadProgress, setUploadProgress] =
     useState(false);
 
   const [errorMessage, setErrorMessage] =
@@ -67,6 +80,10 @@ const CreateProject = () => {
 
   const [successMessage, setSuccessMessage] =
     useState("");
+
+  // ==========================================
+  // GET TOKEN
+  // ==========================================
 
   const getToken = () => {
     return (
@@ -78,6 +95,10 @@ const CreateProject = () => {
       )
     );
   };
+
+  // ==========================================
+  // HANDLE INPUT CHANGE
+  // ==========================================
 
   const handleChange = (
     event: React.ChangeEvent<
@@ -112,6 +133,98 @@ const CreateProject = () => {
     }));
   };
 
+  // ==========================================
+  // HANDLE IMAGE SELECTION
+  // ==========================================
+
+  const handleImageChange = (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    setErrorMessage("");
+    setSuccessMessage("");
+
+    const file =
+      event.target.files?.[0];
+
+    if (!file) {
+      return;
+    }
+
+    const allowedTypes = [
+      "image/jpeg",
+      "image/png",
+      "image/webp",
+    ];
+
+    if (!allowedTypes.includes(file.type)) {
+      setErrorMessage(
+        "Only JPG, JPEG, PNG and WebP images are allowed."
+      );
+
+      event.target.value = "";
+
+      return;
+    }
+
+    const maxSize =
+      5 * 1024 * 1024;
+
+    if (file.size > maxSize) {
+      setErrorMessage(
+        "Image size must be 5 MB or smaller."
+      );
+
+      event.target.value = "";
+
+      return;
+    }
+
+    // Remove old preview URL
+    if (imagePreview) {
+      URL.revokeObjectURL(
+        imagePreview
+      );
+    }
+
+    const previewUrl =
+      URL.createObjectURL(file);
+
+    setSelectedImage(file);
+
+    setImagePreview(
+      previewUrl
+    );
+  };
+
+  // ==========================================
+  // REMOVE IMAGE
+  // ==========================================
+
+  const removeSelectedImage = () => {
+    if (imagePreview) {
+      URL.revokeObjectURL(
+        imagePreview
+      );
+    }
+
+    setSelectedImage(null);
+
+    setImagePreview("");
+
+    const imageInput =
+      document.getElementById(
+        "projectImage"
+      ) as HTMLInputElement | null;
+
+    if (imageInput) {
+      imageInput.value = "";
+    }
+  };
+
+  // ==========================================
+  // HANDLE DELIVERABLE
+  // ==========================================
+
   const handleDeliverableChange = (
     deliverable: string
   ) => {
@@ -140,18 +253,242 @@ const CreateProject = () => {
     });
   };
 
+  // ==========================================
+  // UPLOAD PROJECT IMAGE
+  // ==========================================
+
+  const uploadImage = async (
+    token: string
+  ): Promise<string> => {
+    if (!selectedImage) {
+      throw new Error(
+        "No project image has been selected."
+      );
+    }
+
+    const imageFormData =
+      new FormData();
+
+    imageFormData.append(
+      "image",
+      selectedImage,
+      selectedImage.name
+    );
+
+    setUploadProgress(true);
+
+    try {
+      console.log(
+        "=========================================="
+      );
+
+      console.log(
+        "PROJECT IMAGE UPLOAD"
+      );
+
+      console.log(
+        "File:",
+        selectedImage.name
+      );
+
+      console.log(
+        "Type:",
+        selectedImage.type
+      );
+
+      console.log(
+        "Size:",
+        selectedImage.size
+      );
+
+      console.log(
+        "API:",
+        `${API_BASE_URL}/api/Projects/upload-image`
+      );
+
+      console.log(
+        "Token exists:",
+        Boolean(token)
+      );
+
+      console.log(
+        "=========================================="
+      );
+
+      let response: Response;
+
+      try {
+        response = await fetch(
+          `${API_BASE_URL}/api/Projects/upload-image`,
+          {
+            method: "POST",
+
+            headers: {
+              Authorization:
+                `Bearer ${token}`,
+            },
+
+            body: imageFormData,
+          }
+        );
+      } catch (networkError) {
+        console.error(
+          "IMAGE UPLOAD NETWORK ERROR:",
+          networkError
+        );
+
+        throw new Error(
+          "Could not connect to the ProjectHub API. Make sure the backend is running on http://localhost:5038."
+        );
+      }
+
+      console.log(
+        "Upload HTTP status:",
+        response.status
+      );
+
+      console.log(
+        "Upload status text:",
+        response.statusText
+      );
+
+      console.log(
+        "Upload response type:",
+        response.headers.get(
+          "content-type"
+        )
+      );
+
+      const responseText =
+        await response.text();
+
+      console.log(
+        "Upload response:",
+        responseText
+      );
+
+      let result: any = null;
+
+      if (responseText.trim()) {
+        try {
+          result =
+            JSON.parse(
+              responseText
+            );
+        } catch {
+          result = {
+            message:
+              responseText,
+          };
+        }
+      }
+
+      // ==========================================
+      // HANDLE HTTP ERRORS
+      // ==========================================
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error(
+            "Your login session has expired. Please log in again."
+          );
+        }
+
+        if (response.status === 403) {
+          throw new Error(
+            "You do not have permission to upload project images. Make sure your account role is Seller."
+          );
+        }
+
+        if (response.status === 404) {
+          throw new Error(
+            "Image upload API was not found. Make sure the backend is running the latest ProjectsController."
+          );
+        }
+
+        if (response.status === 413) {
+          throw new Error(
+            "The image is too large for the server."
+          );
+        }
+
+        if (response.status >= 500) {
+          throw new Error(
+            result?.message ||
+            result?.error ||
+            "The ProjectHub server encountered an error while saving the image."
+          );
+        }
+
+        throw new Error(
+          result?.message ||
+          result?.error ||
+          `Image upload failed with HTTP ${response.status}.`
+        );
+      }
+
+      // ==========================================
+      // CHECK IMAGE URL
+      // ==========================================
+
+      const uploadedImageUrl =
+        result?.imageUrl;
+
+      if (
+        !uploadedImageUrl ||
+        typeof uploadedImageUrl !==
+          "string"
+      ) {
+        console.error(
+          "Upload succeeded but imageUrl is missing.",
+          result
+        );
+
+        throw new Error(
+          "The server accepted the image but did not return an image URL."
+        );
+      }
+
+      console.log(
+        "Image uploaded successfully:"
+      );
+
+      console.log(
+        uploadedImageUrl
+      );
+
+      console.log(
+        "=========================================="
+      );
+
+      return uploadedImageUrl;
+    } finally {
+      setUploadProgress(false);
+    }
+  };
+
+  // ==========================================
+  // CREATE PROJECT
+  // ==========================================
+
   const handleSubmit = async (
     event: SyntheticEvent<HTMLFormElement>
   ) => {
     event.preventDefault();
 
     setErrorMessage("");
+
     setSuccessMessage("");
+
+    // ==========================================
+    // VALIDATION
+    // ==========================================
 
     if (!formData.title.trim()) {
       setErrorMessage(
         "Please enter a project title."
       );
+
       return;
     }
 
@@ -159,6 +496,7 @@ const CreateProject = () => {
       setErrorMessage(
         "Please enter a project description."
       );
+
       return;
     }
 
@@ -166,6 +504,7 @@ const CreateProject = () => {
       setErrorMessage(
         "Please select a category."
       );
+
       return;
     }
 
@@ -173,6 +512,7 @@ const CreateProject = () => {
       setErrorMessage(
         "Please enter the technologies used."
       );
+
       return;
     }
 
@@ -180,6 +520,7 @@ const CreateProject = () => {
       setErrorMessage(
         "Please enter the course name."
       );
+
       return;
     }
 
@@ -187,6 +528,7 @@ const CreateProject = () => {
       setErrorMessage(
         "Please enter the university name."
       );
+
       return;
     }
 
@@ -204,6 +546,7 @@ const CreateProject = () => {
       setErrorMessage(
         "Please enter a valid project price."
       );
+
       return;
     }
 
@@ -215,17 +558,24 @@ const CreateProject = () => {
       setErrorMessage(
         "Please enter a valid delivery time."
       );
+
       return;
     }
 
     if (
-      formData.deliverables.length === 0
+      formData.deliverables.length ===
+      0
     ) {
       setErrorMessage(
         "Please select at least one deliverable."
       );
+
       return;
     }
+
+    // ==========================================
+    // TOKEN
+    // ==========================================
 
     const token = getToken();
 
@@ -233,88 +583,118 @@ const CreateProject = () => {
       setErrorMessage(
         "You are not logged in. Please login first."
       );
+
       return;
     }
 
     try {
       setIsSubmitting(true);
 
-      const response = await fetch(
-        "http://localhost:5038/api/Projects",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type":
-              "application/json",
-            Authorization:
-              `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            title:
-              formData.title.trim(),
+      // ==========================================
+      // UPLOAD IMAGE
+      // ==========================================
 
-            description:
-              formData.description.trim(),
+      let uploadedImageUrl:
+        string | null = null;
 
-            category:
-              formData.category,
+      if (selectedImage) {
+        uploadedImageUrl =
+          await uploadImage(
+            token
+          );
+      }
 
-            technologies:
-              formData.technologies.trim(),
+      // ==========================================
+      // CREATE PROJECT
+      // ==========================================
 
-            course:
-              formData.course.trim(),
+      const response =
+        await fetch(
+          `${API_BASE_URL}/api/Projects`,
+          {
+            method: "POST",
 
-            university:
-              formData.university.trim(),
+            headers: {
+              "Content-Type":
+                "application/json",
 
-            price,
+              Authorization:
+                `Bearer ${token}`,
+            },
 
-            deliveryDays,
+            body: JSON.stringify({
+              title:
+                formData.title.trim(),
 
-            deliverables:
-              formData.deliverables.join(
-                ", "
-              ),
+              description:
+                formData.description.trim(),
 
-            imageUrl:
-              formData.imageUrl.trim() ||
-              null,
+              category:
+                formData.category,
 
-            isAvailable:
-              formData.isAvailable,
-          }),
-        }
-      );
+              technologies:
+                formData.technologies.trim(),
 
-      const contentType =
-        response.headers.get(
-          "content-type"
+              course:
+                formData.course.trim(),
+
+              university:
+                formData.university.trim(),
+
+              price,
+
+              deliveryDays,
+
+              deliverables:
+                formData.deliverables.join(
+                  ", "
+                ),
+
+              imageUrl:
+                uploadedImageUrl,
+
+              isAvailable:
+                formData.isAvailable,
+            }),
+          }
         );
+
+      const responseText =
+        await response.text();
 
       let result: any = null;
 
-      if (
-        contentType &&
-        contentType.includes(
-          "application/json"
-        )
-      ) {
-        result =
-          await response.json();
-      } else {
-        const text =
-          await response.text();
-
-        result = {
-          message: text,
-        };
+      if (responseText.trim()) {
+        try {
+          result =
+            JSON.parse(
+              responseText
+            );
+        } catch {
+          result = {
+            message:
+              responseText,
+          };
+        }
       }
 
       if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error(
+            "Your login session has expired. Please log in again."
+          );
+        }
+
+        if (response.status === 403) {
+          throw new Error(
+            "Only Seller accounts can create projects."
+          );
+        }
+
         throw new Error(
           result?.message ||
-          "Unable to create the project."
+          result?.error ||
+          `Unable to create the project. HTTP ${response.status}.`
         );
       }
 
@@ -323,9 +703,16 @@ const CreateProject = () => {
       );
 
       setTimeout(() => {
-        navigate("/dashboard");
+        navigate(
+          "/dashboard"
+        );
       }, 1500);
     } catch (error) {
+      console.error(
+        "CREATE PROJECT ERROR:",
+        error
+      );
+
       setErrorMessage(
         error instanceof Error
           ? error.message
@@ -333,6 +720,8 @@ const CreateProject = () => {
       );
     } finally {
       setIsSubmitting(false);
+
+      setUploadProgress(false);
     }
   };
 
@@ -374,6 +763,10 @@ const CreateProject = () => {
           className="seller-project-create-form"
           onSubmit={handleSubmit}
         >
+
+          {/* ==========================================
+              SECTION 01
+          ========================================== */}
 
           <section className="seller-project-create-section">
 
@@ -521,6 +914,10 @@ const CreateProject = () => {
 
           </section>
 
+          {/* ==========================================
+              SECTION 02
+          ========================================== */}
+
           <section className="seller-project-create-section">
 
             <div className="seller-project-create-section-header">
@@ -589,6 +986,10 @@ const CreateProject = () => {
             </div>
 
           </section>
+
+          {/* ==========================================
+              SECTION 03
+          ========================================== */}
 
           <section className="seller-project-create-section">
 
@@ -676,6 +1077,10 @@ const CreateProject = () => {
             </div>
 
           </section>
+
+          {/* ==========================================
+              SECTION 04
+          ========================================== */}
 
           <section className="seller-project-create-section">
 
@@ -782,6 +1187,10 @@ const CreateProject = () => {
 
           </section>
 
+          {/* ==========================================
+              SECTION 05
+          ========================================== */}
+
           <section className="seller-project-create-section">
 
             <div className="seller-project-create-section-header">
@@ -807,27 +1216,93 @@ const CreateProject = () => {
 
             <div className="seller-project-create-grid">
 
+              {/* ==========================================
+                  IMAGE UPLOAD
+              ========================================== */}
+
               <div className="seller-project-create-field full-width">
 
                 <label className="seller-project-create-label">
-                  Project Image URL
+                  Project Image
                 </label>
 
-                <input
-                  type="url"
-                  name="imageUrl"
-                  value={formData.imageUrl}
-                  onChange={handleChange}
-                  className="seller-project-create-input"
-                  placeholder="https://example.com/project-image.jpg"
-                />
+                <div className="project-image-upload-box">
 
-                <p className="seller-project-create-help">
-                  Optional. You can add an image URL
-                  for your project.
-                </p>
+                  {imagePreview ? (
+                    <div className="project-image-preview">
+
+                      <img
+                        src={imagePreview}
+                        alt="Project preview"
+                      />
+
+                      <button
+                        type="button"
+                        className="project-image-remove"
+                        onClick={
+                          removeSelectedImage
+                        }
+                      >
+                        Remove Image
+                      </button>
+
+                    </div>
+                  ) : (
+                    <label
+                      htmlFor="projectImage"
+                      className="project-image-upload-label"
+                    >
+
+                      <div className="project-image-upload-icon">
+                        ↑
+                      </div>
+
+                      <strong>
+                        Choose Project Image
+                      </strong>
+
+                      <span>
+                        Click to select an image
+                        from your Mac or PC
+                      </span>
+
+                      <small>
+                        JPG, PNG or WebP · Maximum 5 MB
+                      </small>
+
+                    </label>
+                  )}
+
+                  <input
+                    id="projectImage"
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    onChange={
+                      handleImageChange
+                    }
+                    className="project-image-file-input"
+                  />
+
+                </div>
+
+                {selectedImage && (
+                  <p className="seller-project-create-help">
+
+                    Selected:
+                    {" "}
+
+                    <strong>
+                      {selectedImage.name}
+                    </strong>
+
+                  </p>
+                )}
 
               </div>
+
+              {/* ==========================================
+                  AVAILABILITY
+              ========================================== */}
 
               <div className="seller-project-create-toggle-wrapper">
 
@@ -866,6 +1341,10 @@ const CreateProject = () => {
 
           </section>
 
+          {/* ==========================================
+              MESSAGES
+          ========================================== */}
+
           {errorMessage && (
             <div className="seller-project-create-message error">
               {errorMessage}
@@ -877,6 +1356,10 @@ const CreateProject = () => {
               {successMessage}
             </div>
           )}
+
+          {/* ==========================================
+              ACTIONS
+          ========================================== */}
 
           <div className="seller-project-create-actions">
 
@@ -892,9 +1375,13 @@ const CreateProject = () => {
               className="seller-project-create-submit"
               disabled={isSubmitting}
             >
-              {isSubmitting
-                ? "Creating..."
-                : "Create Project"}
+
+              {uploadProgress
+                ? "Uploading Image..."
+                : isSubmitting
+                  ? "Creating..."
+                  : "Create Project"}
+
             </button>
 
           </div>
@@ -908,3 +1395,4 @@ const CreateProject = () => {
 };
 
 export default CreateProject;
+

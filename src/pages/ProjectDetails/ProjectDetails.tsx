@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import Navbar from "../../components/layout/Navbar";
@@ -44,6 +45,7 @@ interface Project {
   deliverables: string[];
   course: string;
   university: string;
+  imageUrl: string | null;
 }
 
 function ProjectDetails() {
@@ -129,6 +131,11 @@ function ProjectDetails() {
           deliverables,
           course: apiProject.course,
           university: apiProject.university,
+
+          // ==========================================
+          // PROJECT IMAGE
+          // ==========================================
+          imageUrl: apiProject.imageUrl,
         };
 
         setProject(formattedProject);
@@ -189,6 +196,35 @@ function ProjectDetails() {
       setPurchasing(false);
     }
   };
+
+  // ==========================================
+  // PROJECT IMAGE URL
+  // ==========================================
+
+  const getProjectImageUrl = (
+    imageUrl: string | null
+  ): string | null => {
+    if (!imageUrl) {
+      return null;
+    }
+
+    if (
+      imageUrl.startsWith("http://") ||
+      imageUrl.startsWith("https://")
+    ) {
+      return imageUrl;
+    }
+
+    if (imageUrl.startsWith("/")) {
+      return `http://localhost:5038${imageUrl}`;
+    }
+
+    return `http://localhost:5038/${imageUrl}`;
+  };
+
+  const projectImageUrl = project
+    ? getProjectImageUrl(project.imageUrl)
+    : null;
 
   if (loading) {
     return (
@@ -311,10 +347,31 @@ function ProjectDetails() {
               </div>
 
               <aside className="purchase-card">
-                <div className="project-preview">
-                  <div className="preview-grid"></div>
 
-                  <span>PROJECT PREVIEW</span>
+                {/* ==========================================
+                    PROJECT IMAGE PREVIEW
+                    ========================================== */}
+
+                <div className="project-preview">
+                  {projectImageUrl ? (
+                    <img
+                      src={projectImageUrl}
+                      alt={`${project.title} project preview`}
+                      className="project-preview-image"
+                      onError={(event) => {
+                        event.currentTarget.style.display =
+                          "none";
+                      }}
+                    />
+                  ) : (
+                    <div className="preview-grid"></div>
+                  )}
+
+                  <div className="project-preview-overlay"></div>
+
+                  <span className="project-preview-label">
+                    PROJECT PREVIEW
+                  </span>
                 </div>
 
                 <div className="purchase-content">
@@ -592,3 +649,4 @@ function ProjectDetails() {
 }
 
 export default ProjectDetails;
+

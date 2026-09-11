@@ -1,3 +1,8 @@
+
+/* =========================================================
+   SELLER PROJECT CREATE PAGE
+========================================================= */
+
 .seller-project-create-page {
   min-height: calc(100vh - 80px);
   background: #f8fafc;
@@ -8,6 +13,10 @@
   max-width: 1050px;
   margin: 0 auto;
 }
+
+/* =========================================================
+   HEADER
+========================================================= */
 
 .seller-project-create-header {
   display: flex;
@@ -25,11 +34,11 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  margin-bottom: 14px;
   color: #64748b;
   text-decoration: none;
   font-size: 14px;
   font-weight: 600;
-  margin-bottom: 14px;
   transition: color 0.2s ease;
 }
 
@@ -60,13 +69,17 @@
   justify-content: center;
   min-height: 38px;
   padding: 0 15px;
+  border: 1px solid #dbeafe;
   border-radius: 999px;
   background: #eff6ff;
-  border: 1px solid #dbeafe;
   color: #2563eb;
   font-size: 13px;
   font-weight: 700;
 }
+
+/* =========================================================
+   FORM
+========================================================= */
 
 .seller-project-create-form {
   display: flex;
@@ -74,11 +87,15 @@
   gap: 22px;
 }
 
+/* =========================================================
+   SECTION
+========================================================= */
+
 .seller-project-create-section {
-  background: #ffffff;
+  padding: 28px;
   border: 1px solid #e2e8f0;
   border-radius: 18px;
-  padding: 28px;
+  background: #ffffff;
   box-shadow: 0 4px 18px rgba(15, 23, 42, 0.04);
 }
 
@@ -117,6 +134,10 @@
   line-height: 1.5;
 }
 
+/* =========================================================
+   GRID
+========================================================= */
+
 .seller-project-create-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -134,6 +155,10 @@
   grid-column: 1 / -1;
 }
 
+/* =========================================================
+   LABELS
+========================================================= */
+
 .seller-project-create-label {
   color: #334155;
   font-size: 13px;
@@ -141,22 +166,26 @@
 }
 
 .seller-project-create-required {
-  color: #ef4444;
   margin-left: 3px;
+  color: #ef4444;
 }
+
+/* =========================================================
+   INPUTS
+========================================================= */
 
 .seller-project-create-input,
 .seller-project-create-select,
 .seller-project-create-textarea {
   width: 100%;
   box-sizing: border-box;
+  outline: none;
   border: 1px solid #cbd5e1;
   border-radius: 10px;
   background: #ffffff;
   color: #0f172a;
   font-family: inherit;
   font-size: 14px;
-  outline: none;
   transition:
     border-color 0.2s ease,
     box-shadow 0.2s ease,
@@ -194,12 +223,25 @@
   border-color: #94a3b8;
 }
 
+/* =========================================================
+   HELP TEXT
+========================================================= */
+
 .seller-project-create-help {
   margin: 0;
   color: #94a3b8;
   font-size: 12px;
   line-height: 1.5;
 }
+
+.seller-project-create-help strong {
+  color: #475569;
+  font-weight: 700;
+}
+
+/* =========================================================
+   PRICE / DELIVERY INPUTS
+========================================================= */
 
 .seller-project-create-input-prefix,
 .seller-project-create-input-suffix {
@@ -215,9 +257,9 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  color: #64748b;
-  background: #f8fafc;
   border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  color: #64748b;
   font-size: 14px;
   font-weight: 700;
 }
@@ -242,7 +284,9 @@
   border-radius: 10px 0 0 10px;
 }
 
-/* Deliverables */
+/* =========================================================
+   DELIVERABLES
+========================================================= */
 
 .seller-project-create-deliverables {
   display: grid;
@@ -345,7 +389,216 @@
   font-size: 13px;
 }
 
-/* Availability */
+/* =========================================================
+   PROJECT IMAGE UPLOAD
+========================================================= */
+
+.project-image-upload-box {
+  position: relative;
+  width: 100%;
+  min-height: 250px;
+  box-sizing: border-box;
+  overflow: hidden;
+  border: 1.5px dashed #cbd5e1;
+  border-radius: 16px;
+  background:
+    linear-gradient(
+      135deg,
+      #f8fafc 0%,
+      #ffffff 50%,
+      #f8fafc 100%
+    );
+  transition:
+    border-color 0.25s ease,
+    background 0.25s ease,
+    box-shadow 0.25s ease;
+}
+
+.project-image-upload-box:hover {
+  border-color: #93c5fd;
+  background:
+    linear-gradient(
+      135deg,
+      #f8fbff 0%,
+      #ffffff 50%,
+      #f8fbff 100%
+    );
+  box-shadow:
+    0 8px 25px rgba(37, 99, 235, 0.06);
+}
+
+/* =========================================================
+   UPLOAD LABEL
+========================================================= */
+
+.project-image-upload-label {
+  width: 100%;
+  min-height: 250px;
+  box-sizing: border-box;
+  padding: 35px 25px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  cursor: pointer;
+}
+
+/* =========================================================
+   UPLOAD ICON
+========================================================= */
+
+.project-image-upload-icon {
+  width: 64px;
+  height: 64px;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #dbeafe;
+  border-radius: 18px;
+  background: #eff6ff;
+  color: #2563eb;
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1;
+  transition:
+    transform 0.25s ease,
+    background 0.25s ease,
+    border-color 0.25s ease;
+}
+
+.project-image-upload-label:hover
+  .project-image-upload-icon {
+  transform: translateY(-3px);
+  border-color: #bfdbfe;
+  background: #dbeafe;
+}
+
+/* =========================================================
+   UPLOAD TITLE
+========================================================= */
+
+.project-image-upload-label strong {
+  margin-bottom: 7px;
+  color: #0f172a;
+  font-size: 16px;
+  font-weight: 750;
+}
+
+/* =========================================================
+   UPLOAD DESCRIPTION
+========================================================= */
+
+.project-image-upload-label span {
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* =========================================================
+   UPLOAD FILE INFO
+========================================================= */
+
+.project-image-upload-label small {
+  margin-top: 10px;
+  padding: 6px 10px;
+  border-radius: 7px;
+  background: #f1f5f9;
+  color: #94a3b8;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* =========================================================
+   HIDDEN FILE INPUT
+========================================================= */
+
+.project-image-file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* =========================================================
+   IMAGE PREVIEW
+========================================================= */
+
+.project-image-preview {
+  position: relative;
+  width: 100%;
+  height: 300px;
+  overflow: hidden;
+  background: #0f172a;
+}
+
+.project-image-preview img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  object-position: center;
+  transition: transform 0.4s ease;
+}
+
+.project-image-preview:hover img {
+  transform: scale(1.025);
+}
+
+/* =========================================================
+   PREVIEW DARK OVERLAY
+========================================================= */
+
+.project-image-preview::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(
+      to bottom,
+      rgba(15, 23, 42, 0) 45%,
+      rgba(15, 23, 42, 0.65) 100%
+    );
+}
+
+/* =========================================================
+   REMOVE IMAGE BUTTON
+========================================================= */
+
+.project-image-remove {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  z-index: 2;
+  min-height: 38px;
+  padding: 0 15px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 9px;
+  background: rgba(15, 23, 42, 0.75);
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  backdrop-filter: blur(10px);
+  transition:
+    background 0.2s ease,
+    transform 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.project-image-remove:hover {
+  transform: translateY(-1px);
+  border-color: rgba(255, 255, 255, 0.4);
+  background: rgba(220, 38, 38, 0.9);
+}
+
+/* =========================================================
+   AVAILABILITY
+========================================================= */
 
 .seller-project-create-toggle-wrapper {
   grid-column: 1 / -1;
@@ -404,8 +657,8 @@
   position: absolute;
   width: 22px;
   height: 22px;
-  left: 3px;
   top: 3px;
+  left: 3px;
   border-radius: 50%;
   background: #ffffff;
   box-shadow: 0 2px 5px rgba(15, 23, 42, 0.2);
@@ -428,7 +681,9 @@
   outline-offset: 2px;
 }
 
-/* Messages */
+/* =========================================================
+   MESSAGES
+========================================================= */
 
 .seller-project-create-message {
   padding: 14px 16px;
@@ -439,18 +694,20 @@
 }
 
 .seller-project-create-message.success {
-  color: #166534;
-  background: #dcfce7;
   border: 1px solid #bbf7d0;
+  background: #dcfce7;
+  color: #166534;
 }
 
 .seller-project-create-message.error {
-  color: #991b1b;
-  background: #fee2e2;
   border: 1px solid #fecaca;
+  background: #fee2e2;
+  color: #991b1b;
 }
 
-/* Actions */
+/* =========================================================
+   ACTIONS
+========================================================= */
 
 .seller-project-create-actions {
   display: flex;
@@ -461,12 +718,12 @@
 }
 
 .seller-project-create-cancel {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
   min-width: 120px;
   height: 46px;
   padding: 0 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border: 1px solid #cbd5e1;
   border-radius: 10px;
   background: #ffffff;
@@ -482,18 +739,18 @@
 }
 
 .seller-project-create-cancel:hover {
-  background: #f8fafc;
   border-color: #94a3b8;
+  background: #f8fafc;
   color: #0f172a;
 }
 
 .seller-project-create-submit {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
   min-width: 160px;
   height: 46px;
   padding: 0 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border: 0;
   border-radius: 10px;
   background: #2563eb;
@@ -508,8 +765,8 @@
 }
 
 .seller-project-create-submit:hover:not(:disabled) {
-  background: #1d4ed8;
   transform: translateY(-1px);
+  background: #1d4ed8;
   box-shadow: 0 7px 16px rgba(37, 99, 235, 0.2);
 }
 
@@ -518,7 +775,9 @@
   cursor: not-allowed;
 }
 
-/* Responsive */
+/* =========================================================
+   RESPONSIVE — TABLET
+========================================================= */
 
 @media (max-width: 768px) {
   .seller-project-create-page {
@@ -556,6 +815,23 @@
     grid-template-columns: 1fr;
   }
 
+  /* Image upload */
+
+  .project-image-upload-box {
+    min-height: 230px;
+  }
+
+  .project-image-upload-label {
+    min-height: 230px;
+    padding: 30px 20px;
+  }
+
+  .project-image-preview {
+    height: 260px;
+  }
+
+  /* Actions */
+
   .seller-project-create-actions {
     flex-direction: column-reverse;
     align-items: stretch;
@@ -567,10 +843,14 @@
   }
 }
 
+/* =========================================================
+   RESPONSIVE — MOBILE
+========================================================= */
+
 @media (max-width: 480px) {
   .seller-project-create-page {
-    padding-left: 12px;
     padding-right: 12px;
+    padding-left: 12px;
   }
 
   .seller-project-create-title {
@@ -606,4 +886,49 @@
     min-height: 50px;
     padding: 0 12px;
   }
+
+  /* Image upload */
+
+  .project-image-upload-box {
+    min-height: 215px;
+    border-radius: 14px;
+  }
+
+  .project-image-upload-label {
+    min-height: 215px;
+    padding: 25px 15px;
+  }
+
+  .project-image-upload-icon {
+    width: 56px;
+    height: 56px;
+    margin-bottom: 13px;
+    border-radius: 15px;
+    font-size: 24px;
+  }
+
+  .project-image-upload-label strong {
+    font-size: 14px;
+  }
+
+  .project-image-upload-label span {
+    font-size: 12px;
+  }
+
+  .project-image-upload-label small {
+    font-size: 10px;
+  }
+
+  .project-image-preview {
+    height: 220px;
+  }
+
+  .project-image-remove {
+    right: 12px;
+    bottom: 12px;
+    min-height: 36px;
+    padding: 0 12px;
+    font-size: 11px;
+  }
 }
+

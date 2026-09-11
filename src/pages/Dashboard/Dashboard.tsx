@@ -1,13 +1,5 @@
-
-import {
-  useEffect,
-  useState,
-} from "react";
-
-import {
-  Link,
-  useNavigate,
-} from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 
 import "./Dashboard.css";
 
@@ -74,14 +66,16 @@ interface SellerOrder {
   updatedAt: string;
 }
 
+interface ConversationSummary {
+  orderId: number;
+  unreadCount?: number;
+}
+
 function Dashboard() {
   const navigate = useNavigate();
 
-  const [activeMenu, setActiveMenu] =
-    useState("Overview");
-
-  const [user, setUser] =
-    useState<CurrentUser | null>(null);
+  const [activeMenu, setActiveMenu] = useState("Overview");
+  const [user, setUser] = useState<CurrentUser | null>(null);
 
   const [sellerProjects, setSellerProjects] =
     useState<SellerProject[]>([]);
@@ -104,17 +98,21 @@ function Dashboard() {
   const [ordersError, setOrdersError] =
     useState("");
 
-  const [isLoading, setIsLoading] =
-    useState(true);
-
-  const [, setError] =
-    useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [, setError] = useState("");
 
   const [deletingProjectId, setDeletingProjectId] =
     useState<number | null>(null);
 
   const [actionOrderId, setActionOrderId] =
     useState<number | null>(null);
+
+  // ==========================================
+  // UNREAD MESSAGE NOTIFICATION
+  // ==========================================
+
+  const [unreadMessages, setUnreadMessages] =
+    useState(0);
 
   // ==========================================
   // DELIVERY FORM DATA
@@ -139,12 +137,20 @@ function Dashboard() {
   const [revisionOpen, setRevisionOpen] =
     useState<Record<number, boolean>>({});
 
+  // ==========================================
+  // TOKEN
+  // ==========================================
+
   const getToken = () => {
     return (
       localStorage.getItem("projecthub_token") ||
       sessionStorage.getItem("projecthub_token")
     );
   };
+
+  // ==========================================
+  // API RESULT
+  // ==========================================
 
   const getApiResult = async (
     response: Response
@@ -153,6 +159,63 @@ function Dashboard() {
       return await response.json();
     } catch {
       return {};
+    }
+  };
+
+  // ==========================================
+  // LOAD UNREAD MESSAGES
+  // ==========================================
+
+  const loadUnreadMessages = async () => {
+    const token = getToken();
+
+    if (!token) {
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        "http://localhost:5038/api/messages/conversations",
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: "application/json",
+          },
+        }
+      );
+
+      if (!response.ok) {
+        return;
+      }
+
+      const result = await getApiResult(response);
+
+      if (!Array.isArray(result)) {
+        setUnreadMessages(0);
+        return;
+      }
+
+      const totalUnread = result.reduce(
+        (
+          total: number,
+          conversation: ConversationSummary
+        ) => {
+          const count = Number(
+            conversation.unreadCount ?? 0
+          );
+
+          return total + (count > 0 ? count : 0);
+        },
+        0
+      );
+
+      setUnreadMessages(totalUnread);
+    } catch (error) {
+      console.error(
+        "Failed to load unread messages:",
+        error
+      );
     }
   };
 
@@ -182,8 +245,7 @@ function Dashboard() {
         }
       );
 
-      const result =
-        await getApiResult(response);
+      const result = await getApiResult(response);
 
       if (!response.ok) {
         throw new Error(
@@ -192,11 +254,9 @@ function Dashboard() {
         );
       }
 
-      if (Array.isArray(result)) {
-        setSellerProjects(result);
-      } else {
-        setSellerProjects([]);
-      }
+      setSellerProjects(
+        Array.isArray(result) ? result : []
+      );
     } catch (error) {
       console.error(
         "Failed to load seller projects:",
@@ -239,8 +299,7 @@ function Dashboard() {
         }
       );
 
-      const result =
-        await getApiResult(response);
+      const result = await getApiResult(response);
 
       if (!response.ok) {
         throw new Error(
@@ -249,11 +308,9 @@ function Dashboard() {
         );
       }
 
-      if (Array.isArray(result)) {
-        setBuyerOrders(result);
-      } else {
-        setBuyerOrders([]);
-      }
+      setBuyerOrders(
+        Array.isArray(result) ? result : []
+      );
     } catch (error) {
       console.error(
         "Failed to load buyer orders:",
@@ -296,8 +353,7 @@ function Dashboard() {
         }
       );
 
-      const result =
-        await getApiResult(response);
+      const result = await getApiResult(response);
 
       if (!response.ok) {
         throw new Error(
@@ -306,11 +362,9 @@ function Dashboard() {
         );
       }
 
-      if (Array.isArray(result)) {
-        setSellerOrders(result);
-      } else {
-        setSellerOrders([]);
-      }
+      setSellerOrders(
+        Array.isArray(result) ? result : []
+      );
     } catch (error) {
       console.error(
         "Failed to load seller orders:",
@@ -355,10 +409,9 @@ function Dashboard() {
         setUser(currentUser);
         setError("");
 
-        const role =
-          String(
-            currentUser.role ?? ""
-          ).toLowerCase();
+        const role = String(
+          currentUser.role ?? ""
+        ).toLowerCase();
 
         if (role === "seller") {
           await Promise.all([
@@ -368,6 +421,9 @@ function Dashboard() {
         } else {
           await loadBuyerOrders();
         }
+
+        // Load unread messages immediately.
+        await loadUnreadMessages();
       } catch (error) {
         if (!isMounted) {
           return;
@@ -408,28 +464,82 @@ function Dashboard() {
   }, [navigate]);
 
   // ==========================================
+  // CHECK UNREAD MESSAGES PERIODICALLY
+  // ==========================================
+
+  useEffect(() => {
+    if (!user) {
+      return;
+    }
+
+    // Check again after a short delay.
+    const initialTimeout = window.setTimeout(() => {
+      loadUnreadMessages();
+    }, 1000);
+
+    // Keep checking while the dashboard is open.
+    const interval = window.setInterval(() => {
+      loadUnreadMessages();
+    }, 5000);
+
+    // Check immediately when the user comes back
+    // to the dashboard/browser tab.
+    const handleWindowFocus = () => {
+      loadUnreadMessages();
+    };
+
+    const handleVisibilityChange = () => {
+      if (
+        document.visibilityState === "visible"
+      ) {
+        loadUnreadMessages();
+      }
+    };
+
+    window.addEventListener(
+      "focus",
+      handleWindowFocus
+    );
+
+    document.addEventListener(
+      "visibilitychange",
+      handleVisibilityChange
+    );
+
+    return () => {
+      window.clearTimeout(initialTimeout);
+      window.clearInterval(interval);
+
+      window.removeEventListener(
+        "focus",
+        handleWindowFocus
+      );
+
+      document.removeEventListener(
+        "visibilitychange",
+        handleVisibilityChange
+      );
+    };
+  }, [user]);
+
+  // ==========================================
   // USER INFORMATION
   // ==========================================
 
   const userName =
-    user?.fullName ||
-    "ProjectHub User";
+    user?.fullName || "ProjectHub User";
 
   const userEmail =
-    user?.email ||
-    "user@example.com";
+    user?.email || "user@example.com";
 
   const userRole =
-    user?.role ||
-    "Buyer";
+    user?.role || "Buyer";
 
   const firstName =
     userName.split(" ")[0];
 
   const userInitial =
-    userName
-      .charAt(0)
-      .toUpperCase();
+    userName.charAt(0).toUpperCase();
 
   const isSeller =
     String(userRole).toLowerCase() ===
@@ -439,13 +549,10 @@ function Dashboard() {
   // ACTIVE ORDERS
   // ==========================================
 
-  const isOrderActive = (
-    status: string
-  ) => {
-    const normalized =
-      String(status || "")
-        .toLowerCase()
-        .trim();
+  const isOrderActive = (status: string) => {
+    const normalized = String(status || "")
+      .toLowerCase()
+      .trim();
 
     return ![
       "completed",
@@ -455,13 +562,11 @@ function Dashboard() {
   };
 
   const activeOrders = isSeller
-    ? sellerOrders.filter(
-        (order) =>
-          isOrderActive(order.status)
+    ? sellerOrders.filter((order) =>
+        isOrderActive(order.status)
       ).length
-    : buyerOrders.filter(
-        (order) =>
-          isOrderActive(order.status)
+    : buyerOrders.filter((order) =>
+        isOrderActive(order.status)
       ).length;
 
   // ==========================================
@@ -570,8 +675,7 @@ function Dashboard() {
         }
       );
 
-      const result =
-        await getApiResult(response);
+      const result = await getApiResult(response);
 
       if (!response.ok) {
         throw new Error(
@@ -635,8 +739,7 @@ function Dashboard() {
         }
       );
 
-      const result =
-        await getApiResult(response);
+      const result = await getApiResult(response);
 
       if (!response.ok) {
         throw new Error(
@@ -645,20 +748,18 @@ function Dashboard() {
         );
       }
 
-      setSellerOrders(
-        (orders) =>
-          orders.map(
-            (order) =>
-              order.id === orderId
-                ? {
-                    ...order,
-                    status:
-                      "Seller Working",
-                    updatedAt:
-                      new Date().toISOString(),
-                  }
-                : order
-          )
+      setSellerOrders((orders) =>
+        orders.map((order) =>
+          order.id === orderId
+            ? {
+                ...order,
+                status: "Seller Working",
+                revisionNote: null,
+                updatedAt:
+                  new Date().toISOString(),
+              }
+            : order
+        )
       );
 
       window.alert(
@@ -718,7 +819,14 @@ function Dashboard() {
     }
 
     try {
-      new URL(githubLink);
+      const githubUrl = new URL(githubLink);
+
+      if (
+        githubUrl.protocol !== "http:" &&
+        githubUrl.protocol !== "https:"
+      ) {
+        throw new Error();
+      }
     } catch {
       window.alert(
         "Please enter a valid GitHub repository URL."
@@ -727,7 +835,15 @@ function Dashboard() {
     }
 
     try {
-      new URL(deliveryLink);
+      const deliveryUrl =
+        new URL(deliveryLink);
+
+      if (
+        deliveryUrl.protocol !== "http:" &&
+        deliveryUrl.protocol !== "https:"
+      ) {
+        throw new Error();
+      }
     } catch {
       window.alert(
         "Please enter a valid delivery URL."
@@ -751,8 +867,7 @@ function Dashboard() {
           method: "PUT",
           headers: {
             Authorization: `Bearer ${token}`,
-            "Content-Type":
-              "application/json",
+            "Content-Type": "application/json",
             Accept: "application/json",
           },
           body: JSON.stringify({
@@ -763,8 +878,7 @@ function Dashboard() {
         }
       );
 
-      const result =
-        await getApiResult(response);
+      const result = await getApiResult(response);
 
       if (!response.ok) {
         throw new Error(
@@ -773,61 +887,40 @@ function Dashboard() {
         );
       }
 
-      setSellerOrders(
-        (orders) =>
-          orders.map(
-            (order) =>
-              order.id === orderId
-                ? {
-                    ...order,
-                    status:
-                      "Submitted",
-                    deliveryNote,
-                    githubLink,
-                    deliveryLink,
-                    revisionNote: null,
-                    updatedAt:
-                      new Date().toISOString(),
-                  }
-                : order
-          )
+      setSellerOrders((orders) =>
+        orders.map((order) =>
+          order.id === orderId
+            ? {
+                ...order,
+                status: "Submitted",
+                deliveryNote,
+                githubLink,
+                deliveryLink,
+                revisionNote: null,
+                updatedAt:
+                  new Date().toISOString(),
+              }
+            : order
+        )
       );
 
-      setDeliveryNotes(
-        (current) => {
-          const updated = {
-            ...current,
-          };
+      setDeliveryNotes((current) => {
+        const updated = { ...current };
+        delete updated[orderId];
+        return updated;
+      });
 
-          delete updated[orderId];
+      setGithubLinks((current) => {
+        const updated = { ...current };
+        delete updated[orderId];
+        return updated;
+      });
 
-          return updated;
-        }
-      );
-
-      setGithubLinks(
-        (current) => {
-          const updated = {
-            ...current,
-          };
-
-          delete updated[orderId];
-
-          return updated;
-        }
-      );
-
-      setDeliveryLinks(
-        (current) => {
-          const updated = {
-            ...current,
-          };
-
-          delete updated[orderId];
-
-          return updated;
-        }
-      );
+      setDeliveryLinks((current) => {
+        const updated = { ...current };
+        delete updated[orderId];
+        return updated;
+      });
 
       window.alert(
         "Work delivered successfully.\n\nThe buyer can now review your project."
@@ -881,8 +974,7 @@ function Dashboard() {
           method: "PUT",
           headers: {
             Authorization: `Bearer ${token}`,
-            "Content-Type":
-              "application/json",
+            "Content-Type": "application/json",
             Accept: "application/json",
           },
           body: JSON.stringify({
@@ -891,8 +983,7 @@ function Dashboard() {
         }
       );
 
-      const result =
-        await getApiResult(response);
+      const result = await getApiResult(response);
 
       if (!response.ok) {
         throw new Error(
@@ -901,41 +992,30 @@ function Dashboard() {
         );
       }
 
-      setBuyerOrders(
-        (orders) =>
-          orders.map(
-            (order) =>
-              order.id === orderId
-                ? {
-                    ...order,
-                    status:
-                      "Revision Requested",
-                    revisionNote,
-                    updatedAt:
-                      new Date().toISOString(),
-                  }
-                : order
-          )
+      setBuyerOrders((orders) =>
+        orders.map((order) =>
+          order.id === orderId
+            ? {
+                ...order,
+                status: "Revision Requested",
+                revisionNote,
+                updatedAt:
+                  new Date().toISOString(),
+              }
+            : order
+        )
       );
 
-      setRevisionNotes(
-        (current) => {
-          const updated = {
-            ...current,
-          };
+      setRevisionNotes((current) => {
+        const updated = { ...current };
+        delete updated[orderId];
+        return updated;
+      });
 
-          delete updated[orderId];
-
-          return updated;
-        }
-      );
-
-      setRevisionOpen(
-        (current) => ({
-          ...current,
-          [orderId]: false,
-        })
-      );
+      setRevisionOpen((current) => ({
+        ...current,
+        [orderId]: false,
+      }));
 
       window.alert(
         "Revision request sent to the seller."
@@ -984,8 +1064,7 @@ function Dashboard() {
         }
       );
 
-      const result =
-        await getApiResult(response);
+      const result = await getApiResult(response);
 
       if (!response.ok) {
         throw new Error(
@@ -994,20 +1073,17 @@ function Dashboard() {
         );
       }
 
-      setBuyerOrders(
-        (orders) =>
-          orders.map(
-            (order) =>
-              order.id === orderId
-                ? {
-                    ...order,
-                    status:
-                      "Buyer Review",
-                    updatedAt:
-                      new Date().toISOString(),
-                  }
-                : order
-          )
+      setBuyerOrders((orders) =>
+        orders.map((order) =>
+          order.id === orderId
+            ? {
+                ...order,
+                status: "Buyer Review",
+                updatedAt:
+                  new Date().toISOString(),
+              }
+            : order
+        )
       );
 
       window.alert(
@@ -1036,10 +1112,9 @@ function Dashboard() {
   const handleCompleteOrder = async (
     orderId: number
   ) => {
-    const confirmed =
-      window.confirm(
-        "Are you sure you want to complete this order?\n\nAfter completion, the seller payout will become ready for release by ProjectHub."
-      );
+    const confirmed = window.confirm(
+      "Are you sure you want to complete this order?\n\nAfter completion, the seller payout will become ready for release by ProjectHub."
+    );
 
     if (!confirmed) {
       return;
@@ -1066,8 +1141,7 @@ function Dashboard() {
         }
       );
 
-      const result =
-        await getApiResult(response);
+      const result = await getApiResult(response);
 
       if (!response.ok) {
         throw new Error(
@@ -1076,20 +1150,17 @@ function Dashboard() {
         );
       }
 
-      setBuyerOrders(
-        (orders) =>
-          orders.map(
-            (order) =>
-              order.id === orderId
-                ? {
-                    ...order,
-                    status:
-                      "Completed",
-                    updatedAt:
-                      new Date().toISOString(),
-                  }
-                : order
-          )
+      setBuyerOrders((orders) =>
+        orders.map((order) =>
+          order.id === orderId
+            ? {
+                ...order,
+                status: "Completed",
+                updatedAt:
+                  new Date().toISOString(),
+              }
+            : order
+        )
       );
 
       window.alert(
@@ -1118,14 +1189,12 @@ function Dashboard() {
   const getStatusStyle = (
     status: string
   ) => {
-    const normalized =
-      String(status || "")
-        .toLowerCase();
+    const normalized = String(status || "")
+      .toLowerCase();
 
     if (
-      normalized.includes(
-        "payment pending"
-      )
+      normalized.includes("payment pending") ||
+      normalized.includes("pending verification")
     ) {
       return {
         background: "#fef3c7",
@@ -1133,99 +1202,56 @@ function Dashboard() {
       };
     }
 
-    if (
-      normalized.includes(
-        "pending verification"
-      )
-    ) {
-      return {
-        background: "#fef3c7",
-        color: "#92400e",
-      };
-    }
-
-    if (
-      normalized.includes(
-        "held"
-      )
-    ) {
+    if (normalized.includes("held")) {
       return {
         background: "#dbeafe",
         color: "#1d4ed8",
       };
     }
 
-    if (
-      normalized.includes(
-        "working"
-      )
-    ) {
+    if (normalized.includes("working")) {
       return {
         background: "#e0e7ff",
         color: "#4338ca",
       };
     }
 
-    if (
-      normalized.includes(
-        "revision"
-      )
-    ) {
+    if (normalized.includes("revision")) {
       return {
         background: "#fee2e2",
         color: "#b91c1c",
       };
     }
 
-    if (
-      normalized.includes(
-        "submitted"
-      )
-    ) {
+    if (normalized.includes("submitted")) {
       return {
         background: "#fef3c7",
         color: "#92400e",
       };
     }
 
-    if (
-      normalized.includes(
-        "review"
-      )
-    ) {
+    if (normalized.includes("review")) {
       return {
         background: "#ede9fe",
         color: "#6d28d9",
       };
     }
 
-    if (
-      normalized.includes(
-        "completed"
-      )
-    ) {
+    if (normalized.includes("completed")) {
       return {
         background: "#dcfce7",
         color: "#166534",
       };
     }
 
-    if (
-      normalized.includes(
-        "released"
-      )
-    ) {
+    if (normalized.includes("released")) {
       return {
         background: "#dcfce7",
         color: "#166534",
       };
     }
 
-    if (
-      normalized.includes(
-        "cancelled"
-      )
-    ) {
+    if (normalized.includes("cancelled")) {
       return {
         background: "#fee2e2",
         color: "#991b1b",
@@ -1259,11 +1285,7 @@ function Dashboard() {
             border: "1px solid #bfdbfe",
           }}
         >
-          <div
-            style={{
-              marginBottom: "12px",
-            }}
-          >
+          <div style={{ marginBottom: "12px" }}>
             <strong
               style={{
                 display: "block",
@@ -1342,11 +1364,7 @@ function Dashboard() {
               </strong>
 
               {order.revisionNote && (
-                <div
-                  style={{
-                    marginTop: "5px",
-                  }}
-                >
+                <div style={{ marginTop: "5px" }}>
                   Buyer says:{" "}
                   {order.revisionNote}
                 </div>
@@ -1354,11 +1372,7 @@ function Dashboard() {
             </div>
           )}
 
-          <div
-            style={{
-              marginBottom: "14px",
-            }}
-          >
+          <div style={{ marginBottom: "14px" }}>
             <strong
               style={{
                 display: "block",
@@ -1381,19 +1395,14 @@ function Dashboard() {
                 lineHeight: 1.5,
               }}
             >
-              Provide both your GitHub repository
-              and the link where the buyer can
-              access the completed files.
+              Provide both your GitHub
+              repository and the link where
+              the buyer can access the
+              completed files.
             </span>
           </div>
 
-          {/* GITHUB LINK */}
-
-          <div
-            style={{
-              marginBottom: "10px",
-            }}
-          >
+          <div style={{ marginBottom: "10px" }}>
             <label
               style={{
                 display: "block",
@@ -1408,25 +1417,20 @@ function Dashboard() {
 
             <input
               type="url"
-              value={
-                githubLinks[order.id] || ""
-              }
+              value={githubLinks[order.id] || ""}
               onChange={(event) =>
-                setGithubLinks(
-                  (current) => ({
-                    ...current,
-                    [order.id]:
-                      event.target.value,
-                  })
-                )
+                setGithubLinks((current) => ({
+                  ...current,
+                  [order.id]:
+                    event.target.value,
+                }))
               }
               placeholder="https://github.com/username/project"
               style={{
                 width: "100%",
                 boxSizing: "border-box",
                 padding: "12px",
-                border:
-                  "1px solid #cbd5e1",
+                border: "1px solid #cbd5e1",
                 borderRadius: "10px",
                 fontFamily: "inherit",
                 fontSize: "14px",
@@ -1435,13 +1439,7 @@ function Dashboard() {
             />
           </div>
 
-          {/* DELIVERY LINK */}
-
-          <div
-            style={{
-              marginBottom: "10px",
-            }}
-          >
+          <div style={{ marginBottom: "10px" }}>
             <label
               style={{
                 display: "block",
@@ -1460,21 +1458,18 @@ function Dashboard() {
                 deliveryLinks[order.id] || ""
               }
               onChange={(event) =>
-                setDeliveryLinks(
-                  (current) => ({
-                    ...current,
-                    [order.id]:
-                      event.target.value,
-                  })
-                )
+                setDeliveryLinks((current) => ({
+                  ...current,
+                  [order.id]:
+                    event.target.value,
+                }))
               }
               placeholder="https://drive.google.com/..."
               style={{
                 width: "100%",
                 boxSizing: "border-box",
                 padding: "12px",
-                border:
-                  "1px solid #cbd5e1",
+                border: "1px solid #cbd5e1",
                 borderRadius: "10px",
                 fontFamily: "inherit",
                 fontSize: "14px",
@@ -1490,19 +1485,13 @@ function Dashboard() {
                 fontSize: "11px",
               }}
             >
-              Google Drive, OneDrive, Dropbox,
-              ZIP hosting, or another accessible
-              file link.
+              Google Drive, OneDrive,
+              Dropbox, ZIP hosting, or another
+              accessible file link.
             </small>
           </div>
 
-          {/* DELIVERY MESSAGE */}
-
-          <div
-            style={{
-              marginBottom: "12px",
-            }}
-          >
+          <div style={{ marginBottom: "12px" }}>
             <label
               style={{
                 display: "block",
@@ -1517,27 +1506,22 @@ function Dashboard() {
 
             <textarea
               value={
-                deliveryNotes[
-                  order.id
-                ] || ""
+                deliveryNotes[order.id] || ""
               }
               onChange={(event) =>
-                setDeliveryNotes(
-                  (current) => ({
-                    ...current,
-                    [order.id]:
-                      event.target.value,
-                  })
-                )
+                setDeliveryNotes((current) => ({
+                  ...current,
+                  [order.id]:
+                    event.target.value,
+                }))
               }
-              placeholder="Write a message for the buyer. Example: The project is completed and all files are included in the delivery link."
+              placeholder="Write a message for the buyer..."
               rows={4}
               style={{
                 width: "100%",
                 boxSizing: "border-box",
                 padding: "12px",
-                border:
-                  "1px solid #cbd5e1",
+                border: "1px solid #cbd5e1",
                 borderRadius: "10px",
                 resize: "vertical",
                 fontFamily: "inherit",
@@ -1757,7 +1741,7 @@ function Dashboard() {
   };
 
   // ==========================================
-  // LOADING SCREEN
+  // LOADING
   // ==========================================
 
   if (isLoading) {
@@ -1781,11 +1765,7 @@ function Dashboard() {
             }}
           >
             Project
-            <span
-              style={{
-                color: "#7c3aed",
-              }}
-            >
+            <span style={{ color: "#7c3aed" }}>
               Hub
             </span>
           </div>
@@ -1809,13 +1789,9 @@ function Dashboard() {
 
   return (
     <main className="dashboard-page">
-
-      {/* ======================================
-          SIDEBAR
-      ====================================== */}
+      {/* SIDEBAR */}
 
       <aside className="dashboard-sidebar">
-
         <Link
           to="/"
           className="dashboard-brand"
@@ -1830,7 +1806,6 @@ function Dashboard() {
         </Link>
 
         <div className="sidebar-section">
-
           <span className="sidebar-label">
             WORKSPACE
           </span>
@@ -1879,6 +1854,8 @@ function Dashboard() {
             My Orders
           </button>
 
+          {/* MESSAGES */}
+
           <button
             type="button"
             className={`sidebar-link ${
@@ -1886,19 +1863,53 @@ function Dashboard() {
                 ? "active"
                 : ""
             }`}
-            onClick={() =>
-              setActiveMenu("Messages")
-            }
+            onClick={() => {
+              setActiveMenu("Messages");
+              navigate("/messages");
+            }}
+            style={{
+              position: "relative",
+            }}
           >
             <span>▱</span>
-            Messages
-            <small>2</small>
-          </button>
 
+            <span
+              style={{
+                flex: 1,
+              }}
+            >
+              Messages
+            </span>
+
+            {unreadMessages > 0 && (
+              <span
+                aria-label={`${unreadMessages} unread messages`}
+                style={{
+                  minWidth: "22px",
+                  height: "22px",
+                  padding: "0 6px",
+                  borderRadius: "999px",
+                  background: "#ef4444",
+                  color: "#ffffff",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: "11px",
+                  fontWeight: 800,
+                  lineHeight: 1,
+                  boxSizing: "border-box",
+                  flexShrink: 0,
+                }}
+              >
+                {unreadMessages > 99
+                  ? "99+"
+                  : unreadMessages}
+              </span>
+            )}
+          </button>
         </div>
 
         <div className="sidebar-section">
-
           <span className="sidebar-label">
             ACCOUNT
           </span>
@@ -1926,45 +1937,30 @@ function Dashboard() {
             <span>↪</span>
             Log out
           </button>
-
         </div>
 
         <div className="sidebar-bottom">
-
           <div className="sidebar-help">
-
-            <div className="help-icon">
-              ?
-            </div>
+            <div className="help-icon">?</div>
 
             <div>
-              <strong>
-                Need help?
-              </strong>
+              <strong>Need help?</strong>
 
               <span>
                 Visit our support center
               </span>
             </div>
-
           </div>
-
         </div>
-
       </aside>
 
-      {/* ======================================
-          MAIN DASHBOARD
-      ====================================== */}
+      {/* MAIN */}
 
       <section className="dashboard-main">
-
         {/* TOPBAR */}
 
         <header className="dashboard-topbar">
-
           <div className="dashboard-mobile-brand">
-
             <span className="dashboard-logo">
               P
             </span>
@@ -1972,11 +1968,9 @@ function Dashboard() {
             <strong>
               Project<span>Hub</span>
             </strong>
-
           </div>
 
           <div className="dashboard-search">
-
             <span>⌕</span>
 
             <input
@@ -1984,55 +1978,86 @@ function Dashboard() {
               placeholder="Search projects, requests..."
             />
 
-            <kbd>
-              /
-            </kbd>
-
+            <kbd>/</kbd>
           </div>
 
           <div className="dashboard-top-actions">
-
             <button
               type="button"
               className="notification-button"
-              aria-label="Notifications"
+              aria-label={
+                unreadMessages > 0
+                  ? `${unreadMessages} unread messages`
+                  : "Notifications"
+              }
+              onClick={() => {
+                if (unreadMessages > 0) {
+                  setActiveMenu("Messages");
+                  navigate("/messages");
+                }
+              }}
+              style={{
+                position: "relative",
+                cursor:
+                  unreadMessages > 0
+                    ? "pointer"
+                    : "default",
+              }}
             >
               ♧
-              <span></span>
+
+              {unreadMessages > 0 && (
+                <span
+                  style={{
+                    position: "absolute",
+                    top: "-4px",
+                    right: "-5px",
+                    minWidth: "19px",
+                    height: "19px",
+                    padding: "0 5px",
+                    borderRadius: "999px",
+                    background: "#ef4444",
+                    color: "#ffffff",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: "10px",
+                    fontWeight: 800,
+                    lineHeight: 1,
+                    border: "2px solid #ffffff",
+                    boxSizing: "border-box",
+                  }}
+                >
+                  {unreadMessages > 99
+                    ? "99+"
+                    : unreadMessages}
+                </span>
+              )}
+
+              {unreadMessages === 0 && (
+                <span></span>
+              )}
             </button>
 
             <div className="topbar-user">
-
               <div className="topbar-avatar">
                 {userInitial}
               </div>
 
               <div className="topbar-user-info">
+                <strong>{userName}</strong>
 
-                <strong>
-                  {userName}
-                </strong>
-
-                <span>
-                  {userRole}
-                </span>
-
+                <span>{userRole}</span>
               </div>
-
             </div>
-
           </div>
-
         </header>
 
         <div className="dashboard-content">
-
           {/* WELCOME */}
 
           <section className="dashboard-welcome">
-
             <div>
-
               <span className="dashboard-eyebrow">
                 {userRole.toUpperCase()} DASHBOARD
               </span>
@@ -2045,11 +2070,9 @@ function Dashboard() {
                 Here's what's happening with
                 your ProjectHub account today.
               </p>
-
             </div>
 
             <div className="welcome-actions">
-
               <Link
                 to="/projects"
                 className="dashboard-primary-button"
@@ -2064,17 +2087,13 @@ function Dashboard() {
               >
                 Create Request
               </Link>
-
             </div>
-
           </section>
 
           {/* STATS */}
 
           <section className="dashboard-stats">
-
             <div className="stat-card">
-
               <div className="stat-icon purple">
                 ◈
               </div>
@@ -2098,19 +2117,15 @@ function Dashboard() {
                   ? "Projects you've listed"
                   : "+0 this month"}
               </small>
-
             </div>
 
             <div className="stat-card">
-
               <div className="stat-icon blue">
                 ▣
               </div>
 
               <div>
-                <span>
-                  Active Orders
-                </span>
+                <span>Active Orders</span>
 
                 <strong>
                   {activeOrders}
@@ -2122,77 +2137,53 @@ function Dashboard() {
                   ? "No active orders"
                   : "Orders currently in progress"}
               </small>
-
             </div>
 
             <div className="stat-card">
-
               <div className="stat-icon green">
                 ◌
               </div>
 
               <div>
-                <span>
-                  Open Requests
-                </span>
+                <span>Open Requests</span>
 
-                <strong>
-                  0
-                </strong>
+                <strong>0</strong>
               </div>
 
               <small>
                 Ready for proposals
               </small>
-
             </div>
 
             <div className="stat-card">
-
               <div className="stat-icon orange">
                 ★
               </div>
 
               <div>
-                <span>
-                  Average Rating
-                </span>
+                <span>Average Rating</span>
 
-                <strong>
-                  —
-                </strong>
+                <strong>—</strong>
               </div>
 
               <small>
                 No reviews yet
               </small>
-
             </div>
-
           </section>
 
-          {/* SELLER ORDER SNAPSHOT */}
+          {/* SELLER PIPELINE */}
 
           {isSeller && (
             <section
               className="dashboard-section"
-              style={{
-                marginTop: "24px",
-              }}
+              style={{ marginTop: "24px" }}
             >
-
               <div className="section-heading">
-
                 <div>
+                  <span>ORDER PIPELINE</span>
 
-                  <span>
-                    ORDER PIPELINE
-                  </span>
-
-                  <h2>
-                    Seller workflow
-                  </h2>
-
+                  <h2>Seller workflow</h2>
                 </div>
 
                 <button
@@ -2202,50 +2193,38 @@ function Dashboard() {
                     border: "none",
                     background:
                       "transparent",
-                    color:
-                      "#7c3aed",
+                    color: "#7c3aed",
                     fontWeight: 700,
                     cursor: "pointer",
                   }}
                 >
                   Manage orders →
                 </button>
-
               </div>
 
               <div
                 style={{
-                  display:
-                    "grid",
+                  display: "grid",
                   gridTemplateColumns:
                     "repeat(auto-fit, minmax(170px, 1fr))",
-                  gap:
-                    "14px",
+                  gap: "14px",
                 }}
               >
-
                 <div
                   style={{
-                    padding:
-                      "18px",
+                    padding: "18px",
                     border:
                       "1px solid #dbeafe",
-                    borderRadius:
-                      "16px",
-                    background:
-                      "#eff6ff",
+                    borderRadius: "16px",
+                    background: "#eff6ff",
                   }}
                 >
                   <span
                     style={{
-                      display:
-                        "block",
-                      color:
-                        "#64748b",
-                      fontSize:
-                        "12px",
-                      marginBottom:
-                        "6px",
+                      display: "block",
+                      color: "#64748b",
+                      fontSize: "12px",
+                      marginBottom: "6px",
                     }}
                   >
                     READY TO START
@@ -2253,12 +2232,9 @@ function Dashboard() {
 
                   <strong
                     style={{
-                      display:
-                        "block",
-                      color:
-                        "#1d4ed8",
-                      fontSize:
-                        "25px",
+                      display: "block",
+                      color: "#1d4ed8",
+                      fontSize: "25px",
                     }}
                   >
                     {sellerWaitingOrders}
@@ -2266,8 +2242,7 @@ function Dashboard() {
 
                   <small
                     style={{
-                      color:
-                        "#475569",
+                      color: "#475569",
                     }}
                   >
                     Payment held
@@ -2276,26 +2251,19 @@ function Dashboard() {
 
                 <div
                   style={{
-                    padding:
-                      "18px",
+                    padding: "18px",
                     border:
                       "1px solid #c7d2fe",
-                    borderRadius:
-                      "16px",
-                    background:
-                      "#eef2ff",
+                    borderRadius: "16px",
+                    background: "#eef2ff",
                   }}
                 >
                   <span
                     style={{
-                      display:
-                        "block",
-                      color:
-                        "#64748b",
-                      fontSize:
-                        "12px",
-                      marginBottom:
-                        "6px",
+                      display: "block",
+                      color: "#64748b",
+                      fontSize: "12px",
+                      marginBottom: "6px",
                     }}
                   >
                     WORKING
@@ -2303,12 +2271,9 @@ function Dashboard() {
 
                   <strong
                     style={{
-                      display:
-                        "block",
-                      color:
-                        "#4338ca",
-                      fontSize:
-                        "25px",
+                      display: "block",
+                      color: "#4338ca",
+                      fontSize: "25px",
                     }}
                   >
                     {sellerWorkingOrders}
@@ -2316,8 +2281,7 @@ function Dashboard() {
 
                   <small
                     style={{
-                      color:
-                        "#475569",
+                      color: "#475569",
                     }}
                   >
                     In progress
@@ -2326,26 +2290,19 @@ function Dashboard() {
 
                 <div
                   style={{
-                    padding:
-                      "18px",
+                    padding: "18px",
                     border:
                       "1px solid #fde68a",
-                    borderRadius:
-                      "16px",
-                    background:
-                      "#fffbeb",
+                    borderRadius: "16px",
+                    background: "#fffbeb",
                   }}
                 >
                   <span
                     style={{
-                      display:
-                        "block",
-                      color:
-                        "#64748b",
-                      fontSize:
-                        "12px",
-                      marginBottom:
-                        "6px",
+                      display: "block",
+                      color: "#64748b",
+                      fontSize: "12px",
+                      marginBottom: "6px",
                     }}
                   >
                     REVIEW
@@ -2353,12 +2310,9 @@ function Dashboard() {
 
                   <strong
                     style={{
-                      display:
-                        "block",
-                      color:
-                        "#92400e",
-                      fontSize:
-                        "25px",
+                      display: "block",
+                      color: "#92400e",
+                      fontSize: "25px",
                     }}
                   >
                     {sellerSubmittedOrders}
@@ -2366,8 +2320,7 @@ function Dashboard() {
 
                   <small
                     style={{
-                      color:
-                        "#475569",
+                      color: "#475569",
                     }}
                   >
                     With buyer
@@ -2376,26 +2329,19 @@ function Dashboard() {
 
                 <div
                   style={{
-                    padding:
-                      "18px",
+                    padding: "18px",
                     border:
                       "1px solid #bbf7d0",
-                    borderRadius:
-                      "16px",
-                    background:
-                      "#f0fdf4",
+                    borderRadius: "16px",
+                    background: "#f0fdf4",
                   }}
                 >
                   <span
                     style={{
-                      display:
-                        "block",
-                      color:
-                        "#64748b",
-                      fontSize:
-                        "12px",
-                      marginBottom:
-                        "6px",
+                      display: "block",
+                      color: "#64748b",
+                      fontSize: "12px",
+                      marginBottom: "6px",
                     }}
                   >
                     COMPLETED
@@ -2403,12 +2349,9 @@ function Dashboard() {
 
                   <strong
                     style={{
-                      display:
-                        "block",
-                      color:
-                        "#166534",
-                      fontSize:
-                        "25px",
+                      display: "block",
+                      color: "#166534",
+                      fontSize: "25px",
                     }}
                   >
                     {sellerCompletedOrders}
@@ -2416,16 +2359,13 @@ function Dashboard() {
 
                   <small
                     style={{
-                      color:
-                        "#475569",
+                      color: "#475569",
                     }}
                   >
                     Finished orders
                   </small>
                 </div>
-
               </div>
-
             </section>
           )}
 
@@ -2435,11 +2375,8 @@ function Dashboard() {
             id="dashboard-orders"
             className="dashboard-section"
           >
-
             <div className="section-heading">
-
               <div>
-
                 <span>
                   {isSeller
                     ? "SELLER ORDERS"
@@ -2451,7 +2388,6 @@ function Dashboard() {
                     ? "Orders from buyers"
                     : "My project orders"}
                 </h2>
-
               </div>
 
               <span
@@ -2472,35 +2408,26 @@ function Dashboard() {
                         : "s"
                     }`}
               </span>
-
             </div>
 
             {ordersLoading ? (
               <div className="activity-card">
-
                 <div className="empty-state">
-
                   <div className="empty-icon">
                     ◌
                   </div>
 
-                  <h3>
-                    Loading orders...
-                  </h3>
+                  <h3>Loading orders...</h3>
 
                   <p>
                     Please wait while we load
                     your orders.
                   </p>
-
                 </div>
-
               </div>
             ) : ordersError ? (
               <div className="activity-card">
-
                 <div className="empty-state">
-
                   <div className="empty-icon">
                     !
                   </div>
@@ -2509,32 +2436,23 @@ function Dashboard() {
                     Unable to load orders
                   </h3>
 
-                  <p>
-                    {ordersError}
-                  </p>
-
+                  <p>{ordersError}</p>
                 </div>
-
               </div>
             ) : isSeller ? (
-
               sellerOrders.length === 0 ? (
                 <div className="activity-card">
-
                   <div className="empty-state">
-
                     <div className="empty-icon">
                       ▣
                     </div>
 
-                    <h3>
-                      No orders yet
-                    </h3>
+                    <h3>No orders yet</h3>
 
                     <p>
-                      When someone purchases one
-                      of your projects, the order
-                      will appear here.
+                      When someone purchases
+                      one of your projects, the
+                      order will appear here.
                     </p>
 
                     <Link
@@ -2543,324 +2461,270 @@ function Dashboard() {
                     >
                       View Marketplace →
                     </Link>
-
                   </div>
-
                 </div>
               ) : (
                 <div
                   style={{
-                    display:
-                      "grid",
-                    gap:
-                      "16px",
+                    display: "grid",
+                    gap: "16px",
                   }}
                 >
+                  {sellerOrders.map((order) => {
+                    const statusStyle =
+                      getStatusStyle(
+                        order.status
+                      );
 
-                  {sellerOrders.map(
-                    (order) => {
-                      const statusStyle =
-                        getStatusStyle(
-                          order.status
-                        );
-
-                      return (
+                    return (
+                      <div
+                        key={order.id}
+                        style={{
+                          border:
+                            "1px solid #e2e8f0",
+                          borderRadius: "18px",
+                          padding: "20px",
+                          background:
+                            "#ffffff",
+                        }}
+                      >
                         <div
-                          key={order.id}
                           style={{
-                            border:
-                              "1px solid #e2e8f0",
-                            borderRadius:
-                              "18px",
-                            padding:
-                              "20px",
-                            background:
-                              "#ffffff",
+                            display: "flex",
+                            justifyContent:
+                              "space-between",
+                            alignItems:
+                              "flex-start",
+                            gap: "16px",
+                            flexWrap: "wrap",
                           }}
                         >
-
-                          {/* ORDER HEADER */}
-
-                          <div
-                            style={{
-                              display:
-                                "flex",
-                              justifyContent:
-                                "space-between",
-                              alignItems:
-                                "flex-start",
-                              gap:
-                                "16px",
-                              flexWrap:
-                                "wrap",
-                            }}
-                          >
-
-                            <div>
-
-                              <span
-                                style={{
-                                  display:
-                                    "block",
-                                  fontSize:
-                                    "12px",
-                                  fontWeight:
-                                    700,
-                                  color:
-                                    "#7c3aed",
-                                  marginBottom:
-                                    "6px",
-                                  textTransform:
-                                    "uppercase",
-                                }}
-                              >
-                                Order #
-                                {order.id}
-                              </span>
-
-                              <h3
-                                style={{
-                                  margin:
-                                    "0 0 7px",
-                                  color:
-                                    "#0f172a",
-                                  fontSize:
-                                    "19px",
-                                }}
-                              >
-                                {order.projectTitle}
-                              </h3>
-
-                              <p
-                                style={{
-                                  margin:
-                                    0,
-                                  color:
-                                    "#64748b",
-                                  fontSize:
-                                    "14px",
-                                }}
-                              >
-                                Buyer:{" "}
-                                <strong
-                                  style={{
-                                    color:
-                                      "#334155",
-                                  }}
-                                >
-                                  {order.buyerName}
-                                </strong>{" "}
-                                @{order.buyerUsername}
-                              </p>
-
-                            </div>
-
+                          <div>
                             <span
                               style={{
-                                ...statusStyle,
-                                padding:
-                                  "7px 12px",
-                                borderRadius:
-                                  "999px",
-                                fontSize:
-                                  "12px",
-                                fontWeight:
-                                  700,
-                                whiteSpace:
-                                  "nowrap",
+                                display: "block",
+                                fontSize: "12px",
+                                fontWeight: 700,
+                                color: "#7c3aed",
+                                marginBottom:
+                                  "6px",
+                                textTransform:
+                                  "uppercase",
                               }}
                             >
-                              {order.status}
+                              Order #{order.id}
                             </span>
 
-                          </div>
-
-                          {/* ORDER DETAILS */}
-
-                          <div
-                            style={{
-                              display:
-                                "grid",
-                              gridTemplateColumns:
-                                "repeat(auto-fit, minmax(130px, 1fr))",
-                              gap:
-                                "14px",
-                              marginTop:
-                                "18px",
-                              paddingTop:
-                                "18px",
-                              borderTop:
-                                "1px solid #e2e8f0",
-                            }}
-                          >
-
-                            <div>
-
-                              <span
-                                style={{
-                                  display:
-                                    "block",
-                                  color:
-                                    "#64748b",
-                                  fontSize:
-                                    "12px",
-                                  marginBottom:
-                                    "4px",
-                                }}
-                              >
-                                Project Value
-                              </span>
-
-                              <strong
-                                style={{
-                                  color:
-                                    "#0f172a",
-                                  fontSize:
-                                    "17px",
-                                }}
-                              >
-                                ৳
-                                {Number(
-                                  order.projectPrice
-                                ).toLocaleString()}
-                              </strong>
-
-                            </div>
-
-                            <div>
-
-                              <span
-                                style={{
-                                  display:
-                                    "block",
-                                  color:
-                                    "#64748b",
-                                  fontSize:
-                                    "12px",
-                                  marginBottom:
-                                    "4px",
-                                }}
-                              >
-                                Your Earnings
-                              </span>
-
-                              <strong
-                                style={{
-                                  color:
-                                    "#16a34a",
-                                  fontSize:
-                                    "17px",
-                                }}
-                              >
-                                ৳
-                                {Number(
-                                  order.sellerAmount
-                                ).toLocaleString()}
-                              </strong>
-
-                            </div>
-
-                            <div>
-
-                              <span
-                                style={{
-                                  display:
-                                    "block",
-                                  color:
-                                    "#64748b",
-                                  fontSize:
-                                    "12px",
-                                  marginBottom:
-                                    "4px",
-                                }}
-                              >
-                                Expected Delivery
-                              </span>
-
-                              <strong
-                                style={{
-                                  color:
-                                    "#334155",
-                                  fontSize:
-                                    "14px",
-                                }}
-                              >
-                                {order.expectedDeliveryDate
-                                  ? new Date(
-                                      order.expectedDeliveryDate
-                                    ).toLocaleDateString()
-                                  : "Not specified"}
-                              </strong>
-
-                            </div>
-
-                            <div>
-
-                              <span
-                                style={{
-                                  display:
-                                    "block",
-                                  color:
-                                    "#64748b",
-                                  fontSize:
-                                    "12px",
-                                  marginBottom:
-                                    "4px",
-                                }}
-                              >
-                                Order Date
-                              </span>
-
-                              <strong
-                                style={{
-                                  color:
-                                    "#334155",
-                                  fontSize:
-                                    "14px",
-                                }}
-                              >
-                                {new Date(
-                                  order.createdAt
-                                ).toLocaleDateString()}
-                              </strong>
-
-                            </div>
-
-                          </div>
-
-                          {/* BUYER MESSAGE */}
-
-                          {order.buyerMessage && (
-                            <div
+                            <h3
                               style={{
-                                marginTop:
-                                  "16px",
-                                padding:
-                                  "13px 15px",
-                                borderRadius:
-                                  "12px",
-                                background:
-                                  "#f8fafc",
-                                color:
-                                  "#475569",
-                                fontSize:
-                                  "13px",
-                                lineHeight:
-                                  1.6,
+                                margin:
+                                  "0 0 7px",
+                                color: "#0f172a",
+                                fontSize: "19px",
                               }}
                             >
-                              <strong>
-                                Buyer message:
+                              {order.projectTitle}
+                            </h3>
+
+                            <p
+                              style={{
+                                margin: 0,
+                                color: "#64748b",
+                                fontSize: "14px",
+                              }}
+                            >
+                              Buyer:{" "}
+                              <strong
+                                style={{
+                                  color:
+                                    "#334155",
+                                }}
+                              >
+                                {order.buyerName}
                               </strong>{" "}
-                              {order.buyerMessage}
-                            </div>
-                          )}
+                              @{order.buyerUsername}
+                            </p>
+                          </div>
 
-                          {/* REVISION NOTE */}
+                          <span
+                            style={{
+                              ...statusStyle,
+                              padding:
+                                "7px 12px",
+                              borderRadius:
+                                "999px",
+                              fontSize: "12px",
+                              fontWeight: 700,
+                              whiteSpace:
+                                "nowrap",
+                            }}
+                          >
+                            {order.status}
+                          </span>
+                        </div>
 
-                          {order.revisionNote &&
-                            order.status ===
-                              "Revision Requested" && (
+                        <div
+                          style={{
+                            display: "grid",
+                            gridTemplateColumns:
+                              "repeat(auto-fit, minmax(130px, 1fr))",
+                            gap: "14px",
+                            marginTop: "18px",
+                            paddingTop: "18px",
+                            borderTop:
+                              "1px solid #e2e8f0",
+                          }}
+                        >
+                          <div>
+                            <span
+                              style={{
+                                display:
+                                  "block",
+                                color:
+                                  "#64748b",
+                                fontSize:
+                                  "12px",
+                                marginBottom:
+                                  "4px",
+                              }}
+                            >
+                              Project Value
+                            </span>
+
+                            <strong
+                              style={{
+                                color:
+                                  "#0f172a",
+                                fontSize:
+                                  "17px",
+                              }}
+                            >
+                              ৳
+                              {Number(
+                                order.projectPrice
+                              ).toLocaleString()}
+                            </strong>
+                          </div>
+
+                          <div>
+                            <span
+                              style={{
+                                display:
+                                  "block",
+                                color:
+                                  "#64748b",
+                                fontSize:
+                                  "12px",
+                                marginBottom:
+                                  "4px",
+                              }}
+                            >
+                              Your Earnings
+                            </span>
+
+                            <strong
+                              style={{
+                                color:
+                                  "#16a34a",
+                                fontSize:
+                                  "17px",
+                              }}
+                            >
+                              ৳
+                              {Number(
+                                order.sellerAmount
+                              ).toLocaleString()}
+                            </strong>
+                          </div>
+
+                          <div>
+                            <span
+                              style={{
+                                display:
+                                  "block",
+                                color:
+                                  "#64748b",
+                                fontSize:
+                                  "12px",
+                                marginBottom:
+                                  "4px",
+                              }}
+                            >
+                              Expected Delivery
+                            </span>
+
+                            <strong
+                              style={{
+                                color:
+                                  "#334155",
+                                fontSize:
+                                  "14px",
+                              }}
+                            >
+                              {order.expectedDeliveryDate
+                                ? new Date(
+                                    order.expectedDeliveryDate
+                                  ).toLocaleDateString()
+                                : "Not specified"}
+                            </strong>
+                          </div>
+
+                          <div>
+                            <span
+                              style={{
+                                display:
+                                  "block",
+                                color:
+                                  "#64748b",
+                                fontSize:
+                                  "12px",
+                                marginBottom:
+                                  "4px",
+                              }}
+                            >
+                              Order Date
+                            </span>
+
+                            <strong
+                              style={{
+                                color:
+                                  "#334155",
+                                fontSize:
+                                  "14px",
+                              }}
+                            >
+                              {new Date(
+                                order.createdAt
+                              ).toLocaleDateString()}
+                            </strong>
+                          </div>
+                        </div>
+
+                        {order.buyerMessage && (
+                          <div
+                            style={{
+                              marginTop: "16px",
+                              padding:
+                                "13px 15px",
+                              borderRadius:
+                                "12px",
+                              background:
+                                "#f8fafc",
+                              color: "#475569",
+                              fontSize: "13px",
+                              lineHeight: 1.6,
+                            }}
+                          >
+                            <strong>
+                              Buyer message:
+                            </strong>{" "}
+                            {order.buyerMessage}
+                          </div>
+                        )}
+
+                        {order.revisionNote &&
+                          order.status ===
+                            "Revision Requested" && (
                             <div
                               style={{
                                 marginTop:
@@ -2888,387 +2752,438 @@ function Dashboard() {
                             </div>
                           )}
 
-                          {/* DELIVERY INFO */}
-
-                          {order.deliveryNote && (
-                            <div
-                              style={{
-                                marginTop:
-                                  "12px",
-                                padding:
-                                  "15px",
-                                borderRadius:
-                                  "12px",
-                                background:
-                                  "#f0fdf4",
-                                border:
-                                  "1px solid #bbf7d0",
-                                color:
-                                  "#166534",
-                                fontSize:
-                                  "13px",
-                                lineHeight:
-                                  1.6,
-                              }}
-                            >
-                              <strong
-                                style={{
-                                  display:
-                                    "block",
-                                  marginBottom:
-                                    "8px",
-                                }}
-                              >
-                                Project Delivery
-                              </strong>
-
-                              <div>
-                                <strong>
-                                  Message:
-                                </strong>{" "}
-                                {order.deliveryNote}
-                              </div>
-
-                              {order.githubLink && (
-                                <div
-                                  style={{
-                                    marginTop:
-                                      "7px",
-                                  }}
-                                >
-                                  <strong>
-                                    GitHub:
-                                  </strong>{" "}
-                                  <a
-                                    href={
-                                      order.githubLink
-                                    }
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    style={{
-                                      color:
-                                        "#2563eb",
-                                      fontWeight:
-                                        700,
-                                    }}
-                                  >
-                                    Open Repository →
-                                  </a>
-                                </div>
-                              )}
-
-                              {order.deliveryLink && (
-                                <div
-                                  style={{
-                                    marginTop:
-                                      "7px",
-                                  }}
-                                >
-                                  <strong>
-                                    Delivery:
-                                  </strong>{" "}
-                                  <a
-                                    href={
-                                      order.deliveryLink
-                                    }
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    style={{
-                                      color:
-                                        "#2563eb",
-                                      fontWeight:
-                                        700,
-                                    }}
-                                  >
-                                    Open Delivery Files →
-                                  </a>
-                                </div>
-                              )}
-
-                            </div>
-                          )}
-
-                          {/* SELLER ACTION */}
-
-                          {renderSellerOrderAction(
-                            order
-                          )}
-
-                        </div>
-                      );
-                    }
-                  )}
-
-                </div>
-              )
-
-            ) : (
-
-              /* =================================
-                 BUYER ORDERS
-              ================================= */
-
-              buyerOrders.length === 0 ? (
-                <div className="activity-card">
-
-                  <div className="empty-state">
-
-                    <div className="empty-icon">
-                      ▣
-                    </div>
-
-                    <h3>
-                      You have no orders yet
-                    </h3>
-
-                    <p>
-                      Browse the marketplace and
-                      purchase a project to create
-                      your first order.
-                    </p>
-
-                    <Link
-                      to="/projects"
-                      className="empty-action"
-                    >
-                      Explore Projects →
-                    </Link>
-
-                  </div>
-
-                </div>
-              ) : (
-                <div
-                  style={{
-                    display:
-                      "grid",
-                    gap:
-                      "16px",
-                  }}
-                >
-
-                  {buyerOrders.map(
-                    (order) => {
-                      const statusStyle =
-                        getStatusStyle(
-                          order.status
-                        );
-
-                      const isRevisionFormOpen =
-                        revisionOpen[
-                          order.id
-                        ] === true;
-
-                      return (
-                        <div
-                          key={order.id}
-                          style={{
-                            border:
-                              "1px solid #e2e8f0",
-                            borderRadius:
-                              "18px",
-                            padding:
-                              "20px",
-                            background:
-                              "#ffffff",
-                          }}
-                        >
-
-                          {/* ORDER HEADER */}
-
+                        {order.deliveryNote && (
                           <div
                             style={{
-                              display:
-                                "flex",
-                              justifyContent:
-                                "space-between",
-                              alignItems:
-                                "flex-start",
-                              gap:
-                                "16px",
-                              flexWrap:
-                                "wrap",
+                              marginTop: "12px",
+                              padding: "15px",
+                              borderRadius:
+                                "12px",
+                              background:
+                                "#f0fdf4",
+                              border:
+                                "1px solid #bbf7d0",
+                              color: "#166534",
+                              fontSize: "13px",
+                              lineHeight: 1.6,
                             }}
                           >
+                            <strong
+                              style={{
+                                display:
+                                  "block",
+                                marginBottom:
+                                  "8px",
+                              }}
+                            >
+                              Project Delivery
+                            </strong>
 
                             <div>
+                              <strong>
+                                Message:
+                              </strong>{" "}
+                              {order.deliveryNote}
+                            </div>
 
-                              <span
+                            {order.githubLink && (
+                              <div
                                 style={{
-                                  display:
-                                    "block",
-                                  fontSize:
-                                    "12px",
-                                  fontWeight:
-                                    700,
-                                  color:
-                                    "#7c3aed",
-                                  marginBottom:
-                                    "6px",
-                                  textTransform:
-                                    "uppercase",
+                                  marginTop:
+                                    "7px",
                                 }}
                               >
-                                Order #
-                                {order.id}
-                              </span>
-
-                              <h3
-                                style={{
-                                  margin:
-                                    "0 0 7px",
-                                  color:
-                                    "#0f172a",
-                                  fontSize:
-                                    "19px",
-                                }}
-                              >
-                                {order.projectTitle}
-                              </h3>
-
-                              <p
-                                style={{
-                                  margin:
-                                    0,
-                                  color:
-                                    "#64748b",
-                                  fontSize:
-                                    "14px",
-                                }}
-                              >
-                                Seller:{" "}
-                                <strong
+                                <strong>
+                                  GitHub:
+                                </strong>{" "}
+                                <a
+                                  href={
+                                    order.githubLink
+                                  }
+                                  target="_blank"
+                                  rel="noopener noreferrer"
                                   style={{
                                     color:
-                                      "#334155",
+                                      "#2563eb",
+                                    fontWeight: 700,
                                   }}
                                 >
-                                  {order.sellerName}
+                                  Open Repository →
+                                </a>
+                              </div>
+                            )}
+
+                            {order.deliveryLink && (
+                              <div
+                                style={{
+                                  marginTop:
+                                    "7px",
+                                }}
+                              >
+                                <strong>
+                                  Delivery:
                                 </strong>{" "}
-                                @{order.sellerUsername}
-                              </p>
+                                <a
+                                  href={
+                                    order.deliveryLink
+                                  }
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  style={{
+                                    color:
+                                      "#2563eb",
+                                    fontWeight: 700,
+                                  }}
+                                >
+                                  Open Delivery Files →
+                                </a>
+                              </div>
+                            )}
+                          </div>
+                        )}
 
-                            </div>
+                        {renderSellerOrderAction(
+                          order
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )
+            ) : buyerOrders.length === 0 ? (
+              <div className="activity-card">
+                <div className="empty-state">
+                  <div className="empty-icon">
+                    ▣
+                  </div>
 
-                            <span
+                  <h3>
+                    You have no orders yet
+                  </h3>
+
+                  <p>
+                    Browse the marketplace and
+                    purchase a project to create
+                    your first order.
+                  </p>
+
+                  <Link
+                    to="/projects"
+                    className="empty-action"
+                  >
+                    Explore Projects →
+                  </Link>
+                </div>
+              </div>
+            ) : (
+              <div
+                style={{
+                  display: "grid",
+                  gap: "16px",
+                }}
+              >
+                {buyerOrders.map((order) => {
+                  const statusStyle =
+                    getStatusStyle(
+                      order.status
+                    );
+
+                  const isRevisionFormOpen =
+                    revisionOpen[order.id] ===
+                    true;
+
+                  return (
+                    <div
+                      key={order.id}
+                      style={{
+                        border:
+                          "1px solid #e2e8f0",
+                        borderRadius: "18px",
+                        padding: "20px",
+                        background:
+                          "#ffffff",
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent:
+                            "space-between",
+                          alignItems:
+                            "flex-start",
+                          gap: "16px",
+                          flexWrap: "wrap",
+                        }}
+                      >
+                        <div>
+                          <span
+                            style={{
+                              display:
+                                "block",
+                              fontSize:
+                                "12px",
+                              fontWeight: 700,
+                              color: "#7c3aed",
+                              marginBottom:
+                                "6px",
+                              textTransform:
+                                "uppercase",
+                            }}
+                          >
+                            Order #{order.id}
+                          </span>
+
+                          <h3
+                            style={{
+                              margin:
+                                "0 0 7px",
+                              color:
+                                "#0f172a",
+                              fontSize: "19px",
+                            }}
+                          >
+                            {order.projectTitle}
+                          </h3>
+
+                          <p
+                            style={{
+                              margin: 0,
+                              color:
+                                "#64748b",
+                              fontSize:
+                                "14px",
+                            }}
+                          >
+                            Seller:{" "}
+                            <strong
                               style={{
-                                ...statusStyle,
-                                padding:
-                                  "7px 12px",
-                                borderRadius:
-                                  "999px",
-                                fontSize:
-                                  "12px",
-                                fontWeight:
-                                  700,
-                                whiteSpace:
-                                  "nowrap",
+                                color:
+                                  "#334155",
                               }}
                             >
-                              {order.status}
-                            </span>
+                              {order.sellerName}
+                            </strong>{" "}
+                            @{order.sellerUsername}
+                          </p>
+                        </div>
 
-                          </div>
+                        <span
+                          style={{
+                            ...statusStyle,
+                            padding:
+                              "7px 12px",
+                            borderRadius:
+                              "999px",
+                            fontSize:
+                              "12px",
+                            fontWeight:
+                              700,
+                            whiteSpace:
+                              "nowrap",
+                          }}
+                        >
+                          {order.status}
+                        </span>
+                      </div>
 
-                          {/* ORDER DETAILS */}
+                      <div
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns:
+                            "repeat(auto-fit, minmax(130px, 1fr))",
+                          gap: "14px",
+                          marginTop: "18px",
+                          paddingTop: "18px",
+                          borderTop:
+                            "1px solid #e2e8f0",
+                        }}
+                      >
+                        <div>
+                          <span
+                            style={{
+                              display:
+                                "block",
+                              color:
+                                "#64748b",
+                              fontSize:
+                                "12px",
+                              marginBottom:
+                                "4px",
+                            }}
+                          >
+                            Project Price
+                          </span>
+
+                          <strong
+                            style={{
+                              color:
+                                "#0f172a",
+                              fontSize:
+                                "17px",
+                            }}
+                          >
+                            ৳
+                            {Number(
+                              order.projectPrice
+                            ).toLocaleString()}
+                          </strong>
+                        </div>
+
+                        <div>
+                          <span
+                            style={{
+                              display:
+                                "block",
+                              color:
+                                "#64748b",
+                              fontSize:
+                                "12px",
+                              marginBottom:
+                                "4px",
+                            }}
+                          >
+                            Order Date
+                          </span>
+
+                          <strong
+                            style={{
+                              color:
+                                "#334155",
+                              fontSize:
+                                "14px",
+                            }}
+                          >
+                            {new Date(
+                              order.createdAt
+                            ).toLocaleDateString()}
+                          </strong>
+                        </div>
+                      </div>
+
+                      {order.buyerMessage && (
+                        <div
+                          style={{
+                            marginTop:
+                              "16px",
+                            padding:
+                              "13px 15px",
+                            borderRadius:
+                              "12px",
+                            background:
+                              "#f8fafc",
+                            color:
+                              "#475569",
+                            fontSize:
+                              "13px",
+                            lineHeight:
+                              1.6,
+                          }}
+                        >
+                          <strong>
+                            Your message:
+                          </strong>{" "}
+                          {order.buyerMessage}
+                        </div>
+                      )}
+
+                      {order.status ===
+                        "Revision Requested" && (
+                        <div
+                          style={{
+                            marginTop:
+                              "16px",
+                            padding:
+                              "14px 15px",
+                            borderRadius:
+                              "12px",
+                            background:
+                              "#fff7ed",
+                            border:
+                              "1px solid #fed7aa",
+                            color:
+                              "#9a3412",
+                            fontSize:
+                              "13px",
+                            lineHeight:
+                              1.6,
+                          }}
+                        >
+                          <strong>
+                            Revision requested
+                          </strong>
 
                           <div
                             style={{
-                              display:
-                                "grid",
-                              gridTemplateColumns:
-                                "repeat(auto-fit, minmax(130px, 1fr))",
-                              gap:
-                                "14px",
                               marginTop:
-                                "18px",
-                              paddingTop:
-                                "18px",
-                              borderTop:
-                                "1px solid #e2e8f0",
+                                "5px",
                             }}
                           >
-
-                            <div>
-
-                              <span
-                                style={{
-                                  display:
-                                    "block",
-                                  color:
-                                    "#64748b",
-                                  fontSize:
-                                    "12px",
-                                  marginBottom:
-                                    "4px",
-                                }}
-                              >
-                                Project Price
-                              </span>
-
-                              <strong
-                                style={{
-                                  color:
-                                    "#0f172a",
-                                  fontSize:
-                                    "17px",
-                                }}
-                              >
-                                ৳
-                                {Number(
-                                  order.projectPrice
-                                ).toLocaleString()}
-                              </strong>
-
-                            </div>
-
-                            <div>
-
-                              <span
-                                style={{
-                                  display:
-                                    "block",
-                                  color:
-                                    "#64748b",
-                                  fontSize:
-                                    "12px",
-                                  marginBottom:
-                                    "4px",
-                                }}
-                              >
-                                Order Date
-                              </span>
-
-                              <strong
-                                style={{
-                                  color:
-                                    "#334155",
-                                  fontSize:
-                                    "14px",
-                                }}
-                              >
-                                {new Date(
-                                  order.createdAt
-                                ).toLocaleDateString()}
-                              </strong>
-
-                            </div>
-
+                            The seller has been
+                            asked to update the
+                            project.
                           </div>
+                        </div>
+                      )}
 
-                          {/* BUYER MESSAGE */}
-
-                          {order.buyerMessage && (
+                      {order.deliveryNote &&
+                        [
+                          "Submitted",
+                          "Buyer Review",
+                          "Completed",
+                          "Payment Released",
+                        ].includes(
+                          order.status
+                        ) && (
+                          <div
+                            style={{
+                              marginTop:
+                                "18px",
+                              padding:
+                                "17px",
+                              borderRadius:
+                                "14px",
+                              background:
+                                "#f0fdf4",
+                              border:
+                                "1px solid #bbf7d0",
+                            }}
+                          >
                             <div
                               style={{
-                                marginTop:
-                                  "16px",
-                                padding:
-                                  "13px 15px",
-                                borderRadius:
-                                  "12px",
-                                background:
-                                  "#f8fafc",
+                                display:
+                                  "flex",
+                                alignItems:
+                                  "center",
+                                gap: "9px",
+                                marginBottom:
+                                  "10px",
+                              }}
+                            >
+                              <span
+                                style={{
+                                  fontSize:
+                                    "20px",
+                                }}
+                              >
+                                📦
+                              </span>
+
+                              <strong
+                                style={{
+                                  color:
+                                    "#166534",
+                                  fontSize:
+                                    "16px",
+                                }}
+                              >
+                                Project Delivered
+                              </strong>
+                            </div>
+
+                            <p
+                              style={{
+                                margin:
+                                  "0 0 12px",
                                 color:
                                   "#475569",
                                 fontSize:
@@ -3277,39 +3192,31 @@ function Dashboard() {
                                   1.6,
                               }}
                             >
-                              <strong>
-                                Your message:
-                              </strong>{" "}
-                              {order.buyerMessage}
-                            </div>
-                          )}
+                              The seller has
+                              delivered the
+                              completed project.
+                            </p>
 
-                          {/* REVISION REQUEST STATUS */}
-
-                          {order.status ===
-                            "Revision Requested" && (
                             <div
                               style={{
-                                marginTop:
-                                  "16px",
                                 padding:
-                                  "14px 15px",
+                                  "12px 14px",
                                 borderRadius:
-                                  "12px",
+                                  "10px",
                                 background:
-                                  "#fff7ed",
-                                border:
-                                  "1px solid #fed7aa",
+                                  "#ffffff",
                                 color:
-                                  "#9a3412",
+                                  "#475569",
                                 fontSize:
                                   "13px",
                                 lineHeight:
                                   1.6,
+                                marginBottom:
+                                  "12px",
                               }}
                             >
                               <strong>
-                                Revision requested
+                                Delivery Message
                               </strong>
 
                               <div
@@ -3318,702 +3225,542 @@ function Dashboard() {
                                     "5px",
                                 }}
                               >
-                                The seller has been
-                                asked to update the
-                                project.
+                                {
+                                  order.deliveryNote
+                                }
                               </div>
                             </div>
-                          )}
 
-                          {/* PROJECT DELIVERED */}
+                            <div
+                              style={{
+                                display:
+                                  "flex",
+                                flexWrap:
+                                  "wrap",
+                                gap: "10px",
+                              }}
+                            >
+                              {order.githubLink && (
+                                <a
+                                  href={
+                                    order.githubLink
+                                  }
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="dashboard-secondary-button"
+                                  style={{
+                                    textDecoration:
+                                      "none",
+                                  }}
+                                >
+                                  GitHub Repository →
+                                </a>
+                              )}
 
-                          {order.deliveryNote &&
-                            (order.status ===
-                              "Submitted" ||
-                              order.status ===
-                                "Buyer Review" ||
-                              order.status ===
-                                "Completed" ||
-                              order.status ===
-                                "Payment Released") && (
+                              {order.deliveryLink && (
+                                <a
+                                  href={
+                                    order.deliveryLink
+                                  }
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="dashboard-primary-button"
+                                  style={{
+                                    textDecoration:
+                                      "none",
+                                  }}
+                                >
+                                  Open Delivery Files →
+                                </a>
+                              )}
+                            </div>
+
                             <div
                               style={{
                                 marginTop:
-                                  "18px",
-                                padding:
-                                  "17px",
-                                borderRadius:
-                                  "14px",
-                                background:
-                                  "#f0fdf4",
-                                border:
-                                  "1px solid #bbf7d0",
+                                  "12px",
+                                color:
+                                  "#64748b",
+                                fontSize:
+                                  "11px",
                               }}
                             >
+                              Delivered:{" "}
+                              {new Date(
+                                order.updatedAt
+                              ).toLocaleString()}
+                            </div>
+                          </div>
+                        )}
 
-                              <div
+                      {order.status ===
+                        "Submitted" && (
+                        <div
+                          style={{
+                            marginTop:
+                              "18px",
+                            padding:
+                              "15px 16px",
+                            borderRadius:
+                              "14px",
+                            background:
+                              "#fffbeb",
+                            border:
+                              "1px solid #fde68a",
+                          }}
+                        >
+                          <strong
+                            style={{
+                              display:
+                                "block",
+                              color:
+                                "#92400e",
+                              fontSize:
+                                "14px",
+                              marginBottom:
+                                "6px",
+                            }}
+                          >
+                            Review the delivered
+                            work
+                          </strong>
+
+                          <p
+                            style={{
+                              margin:
+                                "0 0 12px",
+                              color:
+                                "#64748b",
+                              fontSize:
+                                "13px",
+                              lineHeight:
+                                1.5,
+                            }}
+                          >
+                            Check both the GitHub
+                            repository and
+                            delivery files. If
+                            changes are needed,
+                            request a revision.
+                          </p>
+
+                          <div
+                            style={{
+                              display:
+                                "flex",
+                              flexWrap:
+                                "wrap",
+                              gap: "10px",
+                            }}
+                          >
+                            <button
+                              type="button"
+                              className="dashboard-secondary-button"
+                              onClick={() =>
+                                setRevisionOpen(
+                                  (current) => ({
+                                    ...current,
+                                    [order.id]:
+                                      !current[
+                                        order.id
+                                      ],
+                                  })
+                                )
+                              }
+                            >
+                              {isRevisionFormOpen
+                                ? "Cancel Revision"
+                                : "Request Revision"}
+                            </button>
+
+                            <button
+                              type="button"
+                              className="dashboard-primary-button"
+                              disabled={
+                                actionOrderId ===
+                                order.id
+                              }
+                              onClick={() =>
+                                handleReviewWork(
+                                  order.id
+                                )
+                              }
+                            >
+                              {actionOrderId ===
+                              order.id
+                                ? "Processing..."
+                                : "Review Work →"}
+                            </button>
+                          </div>
+
+                          {isRevisionFormOpen && (
+                            <div
+                              style={{
+                                marginTop:
+                                  "14px",
+                              }}
+                            >
+                              <textarea
+                                value={
+                                  revisionNotes[
+                                    order.id
+                                  ] || ""
+                                }
+                                onChange={(event) =>
+                                  setRevisionNotes(
+                                    (current) => ({
+                                      ...current,
+                                      [order.id]:
+                                        event
+                                          .target
+                                          .value,
+                                    })
+                                  )
+                                }
+                                placeholder="Tell the seller what needs to be changed..."
+                                rows={4}
                                 style={{
-                                  display:
-                                    "flex",
-                                  alignItems:
-                                    "center",
-                                  gap:
-                                    "9px",
-                                  marginBottom:
-                                    "10px",
-                                }}
-                              >
-                                <span
-                                  style={{
-                                    fontSize:
-                                      "20px",
-                                  }}
-                                >
-                                  📦
-                                </span>
-
-                                <strong
-                                  style={{
-                                    color:
-                                      "#166534",
-                                    fontSize:
-                                      "16px",
-                                  }}
-                                >
-                                  Project Delivered
-                                </strong>
-
-                              </div>
-
-                              <p
-                                style={{
-                                  margin:
-                                    "0 0 12px",
-                                  color:
-                                    "#475569",
-                                  fontSize:
-                                    "13px",
-                                  lineHeight:
-                                    1.6,
-                                }}
-                              >
-                                The seller has
-                                delivered the
-                                completed project.
-                              </p>
-
-                              <div
-                                style={{
+                                  width:
+                                    "100%",
+                                  boxSizing:
+                                    "border-box",
                                   padding:
-                                    "12px 14px",
+                                    "12px",
+                                  border:
+                                    "1px solid #cbd5e1",
                                   borderRadius:
                                     "10px",
-                                  background:
-                                    "#ffffff",
-                                  color:
-                                    "#475569",
-                                  fontSize:
-                                    "13px",
-                                  lineHeight:
-                                    1.6,
-                                  marginBottom:
-                                    "12px",
-                                }}
-                              >
-                                <strong>
-                                  Delivery Message
-                                </strong>
-
-                                <div
-                                  style={{
-                                    marginTop:
-                                      "5px",
-                                  }}
-                                >
-                                  {
-                                    order.deliveryNote
-                                  }
-                                </div>
-                              </div>
-
-                              <div
-                                style={{
-                                  display:
-                                    "flex",
-                                  flexWrap:
-                                    "wrap",
-                                  gap:
-                                    "10px",
-                                }}
-                              >
-
-                                {order.githubLink && (
-                                  <a
-                                    href={
-                                      order.githubLink
-                                    }
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="dashboard-secondary-button"
-                                    style={{
-                                      textDecoration:
-                                        "none",
-                                    }}
-                                  >
-                                    GitHub Repository →
-                                  </a>
-                                )}
-
-                                {order.deliveryLink && (
-                                  <a
-                                    href={
-                                      order.deliveryLink
-                                    }
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="dashboard-primary-button"
-                                    style={{
-                                      textDecoration:
-                                        "none",
-                                    }}
-                                  >
-                                    Open Delivery Files →
-                                  </a>
-                                )}
-
-                              </div>
-
-                              <div
-                                style={{
-                                  marginTop:
-                                    "12px",
-                                  color:
-                                    "#64748b",
-                                  fontSize:
-                                    "11px",
-                                }}
-                              >
-                                Delivered:{" "}
-                                {new Date(
-                                  order.updatedAt
-                                ).toLocaleString()}
-                              </div>
-
-                            </div>
-                          )}
-
-                          {/* BUYER REVIEW */}
-
-                          {order.status ===
-                            "Submitted" && (
-                            <div
-                              style={{
-                                marginTop:
-                                  "18px",
-                                padding:
-                                  "15px 16px",
-                                borderRadius:
-                                  "14px",
-                                background:
-                                  "#fffbeb",
-                                border:
-                                  "1px solid #fde68a",
-                              }}
-                            >
-
-                              <strong
-                                style={{
-                                  display:
-                                    "block",
-                                  color:
-                                    "#92400e",
+                                  resize:
+                                    "vertical",
+                                  fontFamily:
+                                    "inherit",
                                   fontSize:
                                     "14px",
+                                  outline:
+                                    "none",
                                   marginBottom:
-                                    "6px",
-                                }}
-                              >
-                                Review the delivered work
-                              </strong>
-
-                              <p
-                                style={{
-                                  margin:
-                                    "0 0 12px",
-                                  color:
-                                    "#64748b",
-                                  fontSize:
-                                    "13px",
-                                  lineHeight:
-                                    1.5,
-                                }}
-                              >
-                                Check both the GitHub
-                                repository and delivery
-                                files. If changes are
-                                needed, request a revision.
-                              </p>
-
-                              <div
-                                style={{
-                                  display:
-                                    "flex",
-                                  flexWrap:
-                                    "wrap",
-                                  gap:
                                     "10px",
                                 }}
-                              >
+                              />
 
-                                <button
-                                  type="button"
-                                  className="dashboard-secondary-button"
-                                  onClick={() =>
-                                    setRevisionOpen(
-                                      (current) => ({
-                                        ...current,
-                                        [order.id]:
-                                          !current[
-                                            order.id
-                                          ],
-                                      })
-                                    )
-                                  }
-                                >
-                                  {isRevisionFormOpen
-                                    ? "Cancel Revision"
-                                    : "Request Revision"}
-                                </button>
-
-                                <button
-                                  type="button"
-                                  className="dashboard-primary-button"
-                                  disabled={
-                                    actionOrderId ===
-                                    order.id
-                                  }
-                                  onClick={() =>
-                                    handleReviewWork(
-                                      order.id
-                                    )
-                                  }
-                                >
-                                  {actionOrderId ===
+                              <button
+                                type="button"
+                                className="dashboard-primary-button"
+                                disabled={
+                                  actionOrderId ===
                                   order.id
-                                    ? "Processing..."
-                                    : "Review Work →"}
-                                </button>
-
-                              </div>
-
-                              {isRevisionFormOpen && (
-                                <div
-                                  style={{
-                                    marginTop:
-                                      "14px",
-                                  }}
-                                >
-
-                                  <textarea
-                                    value={
-                                      revisionNotes[
-                                        order.id
-                                      ] || ""
-                                    }
-                                    onChange={(
-                                      event
-                                    ) =>
-                                      setRevisionNotes(
-                                        (current) => ({
-                                          ...current,
-                                          [order.id]:
-                                            event
-                                              .target
-                                              .value,
-                                        })
-                                      )
-                                    }
-                                    placeholder="Tell the seller what needs to be changed..."
-                                    rows={4}
-                                    style={{
-                                      width:
-                                        "100%",
-                                      boxSizing:
-                                        "border-box",
-                                      padding:
-                                        "12px",
-                                      border:
-                                        "1px solid #cbd5e1",
-                                      borderRadius:
-                                        "10px",
-                                      resize:
-                                        "vertical",
-                                      fontFamily:
-                                        "inherit",
-                                      fontSize:
-                                        "14px",
-                                      outline:
-                                        "none",
-                                      marginBottom:
-                                        "10px",
-                                    }}
-                                  />
-
-                                  <button
-                                    type="button"
-                                    className="dashboard-primary-button"
-                                    disabled={
-                                      actionOrderId ===
-                                      order.id
-                                    }
-                                    onClick={() =>
-                                      handleRequestRevision(
-                                        order.id
-                                      )
-                                    }
-                                  >
-                                    {actionOrderId ===
+                                }
+                                onClick={() =>
+                                  handleRequestRevision(
                                     order.id
-                                      ? "Sending..."
-                                      : "Send Revision Request →"}
-                                  </button>
-
-                                </div>
-                              )}
-
+                                  )
+                                }
+                              >
+                                {actionOrderId ===
+                                order.id
+                                  ? "Sending..."
+                                  : "Send Revision Request →"}
+                              </button>
                             </div>
                           )}
-
-                          {/* BUYER REVIEW */}
-
-                          {order.status ===
-                            "Buyer Review" && (
-                            <div
-                              style={{
-                                marginTop:
-                                  "18px",
-                                padding:
-                                  "15px 16px",
-                                borderRadius:
-                                  "14px",
-                                background:
-                                  "#f5f3ff",
-                                border:
-                                  "1px solid #ddd6fe",
-                              }}
-                            >
-
-                              <strong
-                                style={{
-                                  display:
-                                    "block",
-                                  color:
-                                    "#6d28d9",
-                                  fontSize:
-                                    "14px",
-                                  marginBottom:
-                                    "6px",
-                                }}
-                              >
-                                Final review
-                              </strong>
-
-                              <p
-                                style={{
-                                  margin:
-                                    "0 0 12px",
-                                  color:
-                                    "#64748b",
-                                  fontSize:
-                                    "13px",
-                                  lineHeight:
-                                    1.5,
-                                }}
-                              >
-                                If everything is
-                                correct, complete
-                                the order. The seller
-                                payout will then become
-                                ready for admin release.
-                              </p>
-
-                              <div
-                                style={{
-                                  display:
-                                    "flex",
-                                  flexWrap:
-                                    "wrap",
-                                  gap:
-                                    "10px",
-                                }}
-                              >
-
-                                <button
-                                  type="button"
-                                  className="dashboard-secondary-button"
-                                  onClick={() =>
-                                    setRevisionOpen(
-                                      (current) => ({
-                                        ...current,
-                                        [order.id]:
-                                          !current[
-                                            order.id
-                                          ],
-                                      })
-                                    )
-                                  }
-                                >
-                                  {isRevisionFormOpen
-                                    ? "Cancel Revision"
-                                    : "Request Revision"}
-                                </button>
-
-                                <button
-                                  type="button"
-                                  className="dashboard-primary-button"
-                                  disabled={
-                                    actionOrderId ===
-                                    order.id
-                                  }
-                                  onClick={() =>
-                                    handleCompleteOrder(
-                                      order.id
-                                    )
-                                  }
-                                >
-                                  {actionOrderId ===
-                                  order.id
-                                    ? "Completing..."
-                                    : "Complete Order ✓"}
-                                </button>
-
-                              </div>
-
-                              {isRevisionFormOpen && (
-                                <div
-                                  style={{
-                                    marginTop:
-                                      "14px",
-                                  }}
-                                >
-
-                                  <textarea
-                                    value={
-                                      revisionNotes[
-                                        order.id
-                                      ] || ""
-                                    }
-                                    onChange={(
-                                      event
-                                    ) =>
-                                      setRevisionNotes(
-                                        (current) => ({
-                                          ...current,
-                                          [order.id]:
-                                            event
-                                              .target
-                                              .value,
-                                        })
-                                      )
-                                    }
-                                    placeholder="Tell the seller what needs to be changed..."
-                                    rows={4}
-                                    style={{
-                                      width:
-                                        "100%",
-                                      boxSizing:
-                                        "border-box",
-                                      padding:
-                                        "12px",
-                                      border:
-                                        "1px solid #cbd5e1",
-                                      borderRadius:
-                                        "10px",
-                                      resize:
-                                        "vertical",
-                                      fontFamily:
-                                        "inherit",
-                                      fontSize:
-                                        "14px",
-                                      outline:
-                                        "none",
-                                      marginBottom:
-                                        "10px",
-                                    }}
-                                  />
-
-                                  <button
-                                    type="button"
-                                    className="dashboard-primary-button"
-                                    disabled={
-                                      actionOrderId ===
-                                      order.id
-                                    }
-                                    onClick={() =>
-                                      handleRequestRevision(
-                                        order.id
-                                      )
-                                    }
-                                  >
-                                    {actionOrderId ===
-                                    order.id
-                                      ? "Sending..."
-                                      : "Send Revision Request →"}
-                                  </button>
-
-                                </div>
-                              )}
-
-                            </div>
-                          )}
-
-                          {/* COMPLETED */}
-
-                          {order.status ===
-                            "Completed" && (
-                            <div
-                              style={{
-                                marginTop:
-                                  "18px",
-                                padding:
-                                  "15px 16px",
-                                borderRadius:
-                                  "14px",
-                                background:
-                                  "#f0fdf4",
-                                border:
-                                  "1px solid #bbf7d0",
-                              }}
-                            >
-
-                              <strong
-                                style={{
-                                  display:
-                                    "block",
-                                  color:
-                                    "#166534",
-                                  fontSize:
-                                    "14px",
-                                  marginBottom:
-                                    "5px",
-                                }}
-                              >
-                                ✓ Order completed
-                              </strong>
-
-                              <span
-                                style={{
-                                  color:
-                                    "#475569",
-                                  fontSize:
-                                    "13px",
-                                  lineHeight:
-                                    1.5,
-                                }}
-                              >
-                                The seller payout is
-                                now ready for ProjectHub
-                                admin release.
-                              </span>
-
-                            </div>
-                          )}
-
-                          {/* PAYMENT RELEASED */}
-
-                          {order.status ===
-                            "Payment Released" && (
-                            <div
-                              style={{
-                                marginTop:
-                                  "18px",
-                                padding:
-                                  "15px 16px",
-                                borderRadius:
-                                  "14px",
-                                background:
-                                  "#f0fdf4",
-                                border:
-                                  "1px solid #86efac",
-                              }}
-                            >
-
-                              <strong
-                                style={{
-                                  display:
-                                    "block",
-                                  color:
-                                    "#166534",
-                                  fontSize:
-                                    "14px",
-                                  marginBottom:
-                                    "5px",
-                                }}
-                              >
-                                ✓ Transaction completed
-                              </strong>
-
-                              <span
-                                style={{
-                                  color:
-                                    "#475569",
-                                  fontSize:
-                                    "13px",
-                                  lineHeight:
-                                    1.5,
-                                }}
-                              >
-                                ProjectHub has released
-                                the seller payment and
-                                completed this order.
-                              </span>
-
-                            </div>
-                          )}
-
                         </div>
-                      );
-                    }
-                  )}
+                      )}
 
-                </div>
-              )
+                      {order.status ===
+                        "Buyer Review" && (
+                        <div
+                          style={{
+                            marginTop:
+                              "18px",
+                            padding:
+                              "15px 16px",
+                            borderRadius:
+                              "14px",
+                            background:
+                              "#f5f3ff",
+                            border:
+                              "1px solid #ddd6fe",
+                          }}
+                        >
+                          <strong
+                            style={{
+                              display:
+                                "block",
+                              color:
+                                "#6d28d9",
+                              fontSize:
+                                "14px",
+                              marginBottom:
+                                "6px",
+                            }}
+                          >
+                            Final review
+                          </strong>
+
+                          <p
+                            style={{
+                              margin:
+                                "0 0 12px",
+                              color:
+                                "#64748b",
+                              fontSize:
+                                "13px",
+                              lineHeight:
+                                1.5,
+                            }}
+                          >
+                            If everything is
+                            correct, complete the
+                            order. The seller payout
+                            will then become ready
+                            for admin release.
+                          </p>
+
+                          <div
+                            style={{
+                              display:
+                                "flex",
+                              flexWrap:
+                                "wrap",
+                              gap: "10px",
+                            }}
+                          >
+                            <button
+                              type="button"
+                              className="dashboard-secondary-button"
+                              onClick={() =>
+                                setRevisionOpen(
+                                  (current) => ({
+                                    ...current,
+                                    [order.id]:
+                                      !current[
+                                        order.id
+                                      ],
+                                  })
+                                )
+                              }
+                            >
+                              {isRevisionFormOpen
+                                ? "Cancel Revision"
+                                : "Request Revision"}
+                            </button>
+
+                            <button
+                              type="button"
+                              className="dashboard-primary-button"
+                              disabled={
+                                actionOrderId ===
+                                order.id
+                              }
+                              onClick={() =>
+                                handleCompleteOrder(
+                                  order.id
+                                )
+                              }
+                            >
+                              {actionOrderId ===
+                              order.id
+                                ? "Completing..."
+                                : "Complete Order ✓"}
+                            </button>
+                          </div>
+
+                          {isRevisionFormOpen && (
+                            <div
+                              style={{
+                                marginTop:
+                                  "14px",
+                              }}
+                            >
+                              <textarea
+                                value={
+                                  revisionNotes[
+                                    order.id
+                                  ] || ""
+                                }
+                                onChange={(event) =>
+                                  setRevisionNotes(
+                                    (current) => ({
+                                      ...current,
+                                      [order.id]:
+                                        event
+                                          .target
+                                          .value,
+                                    })
+                                  )
+                                }
+                                placeholder="Tell the seller what needs to be changed..."
+                                rows={4}
+                                style={{
+                                  width:
+                                    "100%",
+                                  boxSizing:
+                                    "border-box",
+                                  padding:
+                                    "12px",
+                                  border:
+                                    "1px solid #cbd5e1",
+                                  borderRadius:
+                                    "10px",
+                                  resize:
+                                    "vertical",
+                                  fontFamily:
+                                    "inherit",
+                                  fontSize:
+                                    "14px",
+                                  outline:
+                                    "none",
+                                  marginBottom:
+                                    "10px",
+                                }}
+                              />
+
+                              <button
+                                type="button"
+                                className="dashboard-primary-button"
+                                disabled={
+                                  actionOrderId ===
+                                  order.id
+                                }
+                                onClick={() =>
+                                  handleRequestRevision(
+                                    order.id
+                                  )
+                                }
+                              >
+                                {actionOrderId ===
+                                order.id
+                                  ? "Sending..."
+                                  : "Send Revision Request →"}
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {order.status ===
+                        "Completed" && (
+                        <div
+                          style={{
+                            marginTop:
+                              "18px",
+                            padding:
+                              "15px 16px",
+                            borderRadius:
+                              "14px",
+                            background:
+                              "#f0fdf4",
+                            border:
+                              "1px solid #bbf7d0",
+                          }}
+                        >
+                          <strong
+                            style={{
+                              display:
+                                "block",
+                              color:
+                                "#166534",
+                              fontSize:
+                                "14px",
+                              marginBottom:
+                                "5px",
+                            }}
+                          >
+                            ✓ Order completed
+                          </strong>
+
+                          <span
+                            style={{
+                              color:
+                                "#475569",
+                              fontSize:
+                                "13px",
+                              lineHeight:
+                                1.5,
+                            }}
+                          >
+                            The seller payout is
+                            now ready for ProjectHub
+                            admin release.
+                          </span>
+                        </div>
+                      )}
+
+                      {order.status ===
+                        "Payment Released" && (
+                        <div
+                          style={{
+                            marginTop:
+                              "18px",
+                            padding:
+                              "15px 16px",
+                            borderRadius:
+                              "14px",
+                            background:
+                              "#f0fdf4",
+                            border:
+                              "1px solid #86efac",
+                          }}
+                        >
+                          <strong
+                            style={{
+                              display:
+                                "block",
+                              color:
+                                "#166534",
+                              fontSize:
+                                "14px",
+                              marginBottom:
+                                "5px",
+                            }}
+                          >
+                            ✓ Transaction completed
+                          </strong>
+
+                          <span
+                            style={{
+                              color:
+                                "#475569",
+                              fontSize:
+                                "13px",
+                              lineHeight:
+                                1.5,
+                            }}
+                          >
+                            ProjectHub has released
+                            the seller payment and
+                            completed this order.
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             )}
-
           </section>
 
           {/* SELLER PROJECTS */}
 
           {isSeller && (
             <section className="dashboard-section">
-
               <div className="section-heading">
-
                 <div>
-
                   <span>
                     SELLER WORKSPACE
                   </span>
 
-                  <h2>
-                    My Projects
-                  </h2>
-
+                  <h2>My Projects</h2>
                 </div>
 
                 <div
                   style={{
-                    display:
-                      "flex",
-                    gap:
-                      "10px",
-                    alignItems:
-                      "center",
-                    flexWrap:
-                      "wrap",
+                    display: "flex",
+                    gap: "10px",
+                    alignItems: "center",
+                    flexWrap: "wrap",
                   }}
                 >
-
                   <Link
                     to="/projects"
                     className="dashboard-secondary-button"
@@ -4027,16 +3774,12 @@ function Dashboard() {
                   >
                     + Create Project
                   </Link>
-
                 </div>
-
               </div>
 
               {projectsLoading ? (
                 <div className="activity-card">
-
                   <div className="empty-state">
-
                     <div className="empty-icon">
                       ◌
                     </div>
@@ -4049,15 +3792,11 @@ function Dashboard() {
                       Please wait while we load
                       your seller projects.
                     </p>
-
                   </div>
-
                 </div>
               ) : projectsError ? (
                 <div className="activity-card">
-
                   <div className="empty-state">
-
                     <div className="empty-icon">
                       !
                     </div>
@@ -4069,21 +3808,19 @@ function Dashboard() {
                     <p>
                       {projectsError}
                     </p>
-
                   </div>
-
                 </div>
-              ) : sellerProjects.length === 0 ? (
+              ) : sellerProjects.length ===
+                0 ? (
                 <div className="activity-card">
-
                   <div className="empty-state">
-
                     <div className="empty-icon">
                       ◈
                     </div>
 
                     <h3>
-                      You haven't listed a project yet
+                      You haven't listed a
+                      project yet
                     </h3>
 
                     <p>
@@ -4091,22 +3828,17 @@ function Dashboard() {
                       it will appear here for you
                       to manage.
                     </p>
-
                   </div>
-
                 </div>
               ) : (
                 <div
                   style={{
-                    display:
-                      "grid",
+                    display: "grid",
                     gridTemplateColumns:
                       "repeat(auto-fit, minmax(280px, 1fr))",
-                    gap:
-                      "20px",
+                    gap: "20px",
                   }}
                 >
-
                   {sellerProjects.map(
                     (project) => (
                       <div
@@ -4114,40 +3846,32 @@ function Dashboard() {
                         style={{
                           border:
                             "1px solid #e2e8f0",
-                          borderRadius:
-                            "18px",
-                          padding:
-                            "22px",
+                          borderRadius: "18px",
+                          padding: "22px",
                           background:
                             "#ffffff",
                         }}
                       >
-
                         <div
                           style={{
-                            display:
-                              "flex",
+                            display: "flex",
                             justifyContent:
                               "space-between",
                             alignItems:
                               "flex-start",
-                            gap:
-                              "12px",
+                            gap: "12px",
                             marginBottom:
                               "16px",
                           }}
                         >
-
                           <div>
-
                             <span
                               style={{
                                 display:
                                   "inline-block",
                                 fontSize:
                                   "12px",
-                                fontWeight:
-                                  700,
+                                fontWeight: 700,
                                 color:
                                   "#7c3aed",
                                 marginBottom:
@@ -4173,17 +3897,14 @@ function Dashboard() {
                             >
                               {project.title}
                             </h3>
-
                           </div>
 
                           <span
                             style={{
-                              flexShrink:
-                                0,
+                              flexShrink: 0,
                               fontSize:
                                 "11px",
-                              fontWeight:
-                                700,
+                              fontWeight: 700,
                               padding:
                                 "6px 9px",
                               borderRadius:
@@ -4202,7 +3923,6 @@ function Dashboard() {
                               ? "Approved"
                               : "Pending"}
                           </span>
-
                         </div>
 
                         <p
@@ -4234,13 +3954,11 @@ function Dashboard() {
                               "flex",
                             flexWrap:
                               "wrap",
-                            gap:
-                              "8px",
+                            gap: "8px",
                             marginBottom:
                               "18px",
                           }}
                         >
-
                           {project.technologies
                             .split(",")
                             .map(
@@ -4270,7 +3988,6 @@ function Dashboard() {
                                 </span>
                               )
                             )}
-
                         </div>
 
                         <div
@@ -4281,17 +3998,14 @@ function Dashboard() {
                               "center",
                             justifyContent:
                               "space-between",
-                            gap:
-                              "12px",
+                            gap: "12px",
                             paddingTop:
                               "16px",
                             borderTop:
                               "1px solid #e2e8f0",
                           }}
                         >
-
                           <div>
-
                             <span
                               style={{
                                 display:
@@ -4320,7 +4034,6 @@ function Dashboard() {
                                 project.price
                               ).toLocaleString()}
                             </strong>
-
                           </div>
 
                           <div
@@ -4329,7 +4042,6 @@ function Dashboard() {
                                 "right",
                             }}
                           >
-
                             <span
                               style={{
                                 display:
@@ -4361,28 +4073,23 @@ function Dashboard() {
                                 ? "day"
                                 : "days"}
                             </strong>
-
                           </div>
-
                         </div>
 
                         <div
                           style={{
                             display:
                               "flex",
-                            gap:
-                              "10px",
+                            gap: "10px",
                             marginTop:
                               "18px",
                           }}
                         >
-
                           <Link
                             to={`/projects/${project.id}`}
                             className="dashboard-primary-button"
                             style={{
-                              flex:
-                                1,
+                              flex: 1,
                               justifyContent:
                                 "center",
                               textDecoration:
@@ -4396,8 +4103,7 @@ function Dashboard() {
                             type="button"
                             className="dashboard-secondary-button"
                             style={{
-                              flex:
-                                1,
+                              flex: 1,
                               border:
                                 "1px solid #e2e8f0",
                               cursor:
@@ -4411,7 +4117,6 @@ function Dashboard() {
                           >
                             Edit
                           </button>
-
                         </div>
 
                         <div
@@ -4426,7 +4131,6 @@ function Dashboard() {
                               "14px",
                           }}
                         >
-
                           <span
                             style={{
                               fontSize:
@@ -4470,8 +4174,7 @@ function Dashboard() {
                                 project.id
                                   ? "not-allowed"
                                   : "pointer",
-                              padding:
-                                "6px",
+                              padding: "6px",
                             }}
                             onClick={() =>
                               handleDeleteProject(
@@ -4485,54 +4188,39 @@ function Dashboard() {
                               ? "Deleting..."
                               : "Delete"}
                           </button>
-
                         </div>
-
                       </div>
                     )
                   )}
-
                 </div>
               )}
-
             </section>
           )}
 
           {/* QUICK ACTIONS */}
 
           <section className="dashboard-section">
-
             <div className="section-heading">
-
               <div>
-
-                <span>
-                  GET STARTED
-                </span>
+                <span>GET STARTED</span>
 
                 <h2>
                   What would you like to do?
                 </h2>
-
               </div>
-
             </div>
 
             <div className="quick-actions">
-
               <Link
                 to="/projects"
                 className="quick-action-card"
               >
-
                 <div className="quick-action-icon purple">
                   ◈
                 </div>
 
                 <div>
-                  <h3>
-                    Find a Project
-                  </h3>
+                  <h3>Find a Project</h3>
 
                   <p>
                     Explore ready-made projects
@@ -4543,22 +4231,18 @@ function Dashboard() {
                 <span className="quick-arrow">
                   →
                 </span>
-
               </Link>
 
               <Link
                 to="/requests"
                 className="quick-action-card"
               >
-
                 <div className="quick-action-icon blue">
                   +
                 </div>
 
                 <div>
-                  <h3>
-                    Post a Request
-                  </h3>
+                  <h3>Post a Request</h3>
 
                   <p>
                     Tell sellers exactly what
@@ -4569,22 +4253,18 @@ function Dashboard() {
                 <span className="quick-arrow">
                   →
                 </span>
-
               </Link>
 
               <Link
                 to="/profile"
                 className="quick-action-card"
               >
-
                 <div className="quick-action-icon green">
                   ◎
                 </div>
 
                 <div>
-                  <h3>
-                    Complete Profile
-                  </h3>
+                  <h3>Complete Profile</h3>
 
                   <p>
                     Add your skills and academic
@@ -4595,29 +4275,18 @@ function Dashboard() {
                 <span className="quick-arrow">
                   →
                 </span>
-
               </Link>
-
             </div>
-
           </section>
 
           {/* ACTIVITY */}
 
           <section className="dashboard-section">
-
             <div className="section-heading">
-
               <div>
+                <span>ACTIVITY</span>
 
-                <span>
-                  ACTIVITY
-                </span>
-
-                <h2>
-                  Recent activity
-                </h2>
-
+                <h2>Recent activity</h2>
               </div>
 
               <button
@@ -4627,22 +4296,17 @@ function Dashboard() {
                   border: "none",
                   background:
                     "transparent",
-                  color:
-                    "#7c3aed",
+                  color: "#7c3aed",
                   fontWeight: 700,
-                  cursor:
-                    "pointer",
+                  cursor: "pointer",
                 }}
               >
                 View orders
               </button>
-
             </div>
 
             <div className="activity-card">
-
               <div className="empty-state">
-
                 <div className="empty-icon">
                   ◌
                 </div>
@@ -4669,47 +4333,31 @@ function Dashboard() {
                 >
                   Explore Projects →
                 </Link>
-
               </div>
-
             </div>
-
           </section>
 
           {/* ACCOUNT */}
 
           <section className="account-preview">
-
             <div className="account-avatar-large">
               {userInitial}
             </div>
 
             <div className="account-preview-info">
+              <span>SIGNED IN AS</span>
 
-              <span>
-                SIGNED IN AS
-              </span>
+              <h3>{userName}</h3>
 
-              <h3>
-                {userName}
-              </h3>
-
-              <p>
-                {userEmail}
-              </p>
-
+              <p>{userEmail}</p>
             </div>
 
             <div className="account-role">
               {userRole}
             </div>
-
           </section>
-
         </div>
-
       </section>
-
     </main>
   );
 }

@@ -1,4 +1,3 @@
-import "./SellerProjectEdit.css";
 import {
   useEffect,
   useState,
@@ -47,6 +46,9 @@ interface ProjectFormData {
   isAvailable: boolean;
 }
 
+const API_BASE_URL =
+  "http://localhost:5038";
+
 function SellerProjectEdit() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -69,10 +71,19 @@ function SellerProjectEdit() {
       isAvailable: true,
     });
 
+  const [selectedImage, setSelectedImage] =
+    useState<File | null>(null);
+
+  const [imagePreview, setImagePreview] =
+    useState("");
+
   const [isLoading, setIsLoading] =
     useState(true);
 
   const [isSaving, setIsSaving] =
+    useState(false);
+
+  const [uploadProgress, setUploadProgress] =
     useState(false);
 
   const [error, setError] =
@@ -81,15 +92,39 @@ function SellerProjectEdit() {
   const [success, setSuccess] =
     useState("");
 
+  const getToken = () => {
+    return (
+      localStorage.getItem(
+        "projecthub_token"
+      ) ||
+      sessionStorage.getItem(
+        "projecthub_token"
+      )
+    );
+  };
+
+  const getImageUrl = (
+    imageUrl: string | null
+  ) => {
+    if (!imageUrl) {
+      return "";
+    }
+
+    if (
+      imageUrl.startsWith("http://") ||
+      imageUrl.startsWith("https://") ||
+      imageUrl.startsWith("blob:")
+    ) {
+      return imageUrl;
+    }
+
+    return `${API_BASE_URL}${imageUrl}`;
+  };
+
   useEffect(() => {
     const loadProject = async () => {
       const token =
-        localStorage.getItem(
-          "projecthub_token"
-        ) ||
-        sessionStorage.getItem(
-          "projecthub_token"
-        );
+        getToken();
 
       if (!token) {
         navigate("/login");
@@ -97,8 +132,12 @@ function SellerProjectEdit() {
       }
 
       if (!id) {
-        setError("Project ID is missing.");
+        setError(
+          "Project ID is missing."
+        );
+
         setIsLoading(false);
+
         return;
       }
 
@@ -106,18 +145,24 @@ function SellerProjectEdit() {
         setIsLoading(true);
         setError("");
 
-        const response = await fetch(
-          `http://localhost:5038/api/Projects/${id}`,
-          {
-            method: "GET",
-            headers: {
-              Authorization: `Bearer ${token}`,
-              Accept: "application/json",
-            },
-          }
-        );
+        const response =
+          await fetch(
+            `${API_BASE_URL}/api/Projects/${id}`,
+            {
+              method: "GET",
 
-        const result = await response.json();
+              headers: {
+                Authorization:
+                  `Bearer ${token}`,
+
+                Accept:
+                  "application/json",
+              },
+            }
+          );
+
+        const result =
+          await response.json();
 
         if (!response.ok) {
           throw new Error(
@@ -134,27 +179,45 @@ function SellerProjectEdit() {
         setFormData({
           title:
             projectData.title || "",
+
           description:
             projectData.description || "",
+
           category:
             projectData.category || "",
+
           technologies:
             projectData.technologies || "",
+
           course:
             projectData.course || "",
+
           university:
             projectData.university || "",
+
           price:
             projectData.price.toString(),
+
           deliveryDays:
             projectData.deliveryDays.toString(),
+
           deliverables:
             projectData.deliverables || "",
+
           imageUrl:
             projectData.imageUrl || "",
+
           isAvailable:
             projectData.isAvailable,
         });
+
+        if (projectData.imageUrl) {
+          setImagePreview(
+            getImageUrl(
+              projectData.imageUrl
+            )
+          );
+        }
       } catch (error) {
         console.error(
           "Failed to load project:",
@@ -187,18 +250,153 @@ function SellerProjectEdit() {
     setSuccess("");
   };
 
+  const handleImageChange = (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    setError("");
+
+    const file =
+      event.target.files?.[0];
+
+    if (!file) {
+      return;
+    }
+
+    const allowedTypes = [
+      "image/jpeg",
+      "image/png",
+      "image/webp",
+    ];
+
+    if (!allowedTypes.includes(
+      file.type
+    )) {
+      setError(
+        "Only JPG, JPEG, PNG and WebP images are allowed."
+      );
+
+      event.target.value = "";
+      return;
+    }
+
+    const maxSize =
+      5 * 1024 * 1024;
+
+    if (file.size > maxSize) {
+      setError(
+        "Image size must be 5 MB or smaller."
+      );
+
+      event.target.value = "";
+      return;
+    }
+
+    setSelectedImage(file);
+
+    const previewUrl =
+      URL.createObjectURL(file);
+
+    setImagePreview(previewUrl);
+  };
+
+  const removeSelectedImage = () => {
+    setSelectedImage(null);
+
+    if (formData.imageUrl) {
+      setImagePreview(
+        getImageUrl(
+          formData.imageUrl
+        )
+      );
+    } else {
+      setImagePreview("");
+    }
+
+    const imageInput =
+      document.getElementById(
+        "projectImage"
+      ) as HTMLInputElement | null;
+
+    if (imageInput) {
+      imageInput.value = "";
+    }
+  };
+
+  const uploadImage = async (
+    token: string
+  ) => {
+    if (!selectedImage) {
+      return null;
+    }
+
+    const imageFormData =
+      new FormData();
+
+    imageFormData.append(
+      "image",
+      selectedImage
+    );
+
+    setUploadProgress(true);
+
+    const response =
+      await fetch(
+        `${API_BASE_URL}/api/Projects/upload-image`,
+        {
+          method: "POST",
+
+          headers: {
+            Authorization:
+              `Bearer ${token}`,
+          },
+
+          body: imageFormData,
+        }
+      );
+
+    const contentType =
+      response.headers.get(
+        "content-type"
+      );
+
+    let result: any = null;
+
+    if (
+      contentType &&
+      contentType.includes(
+        "application/json"
+      )
+    ) {
+      result =
+        await response.json();
+    } else {
+      const text =
+        await response.text();
+
+      result = {
+        message: text,
+      };
+    }
+
+    setUploadProgress(false);
+
+    if (!response.ok) {
+      throw new Error(
+        result?.message ||
+        "Unable to upload the project image."
+      );
+    }
+
+    return result?.imageUrl || null;
+  };
+
   const handleSubmit = async (
     event: FormEvent<HTMLFormElement>
   ) => {
     event.preventDefault();
 
     const token =
-      localStorage.getItem(
-        "projecthub_token"
-      ) ||
-      sessionStorage.getItem(
-        "projecthub_token"
-      );
+      getToken();
 
     if (!token) {
       navigate("/login");
@@ -206,7 +404,10 @@ function SellerProjectEdit() {
     }
 
     if (!id) {
-      setError("Project ID is missing.");
+      setError(
+        "Project ID is missing."
+      );
+
       return;
     }
 
@@ -224,6 +425,7 @@ function SellerProjectEdit() {
       setError(
         "Please fill in all required fields."
       );
+
       return;
     }
 
@@ -240,16 +442,20 @@ function SellerProjectEdit() {
       setError(
         "Please enter a valid project price."
       );
+
       return;
     }
 
     if (
-      !Number.isInteger(deliveryDays) ||
+      !Number.isInteger(
+        deliveryDays
+      ) ||
       deliveryDays <= 0
     ) {
       setError(
         "Please enter valid delivery days."
       );
+
       return;
     }
 
@@ -258,50 +464,89 @@ function SellerProjectEdit() {
       setError("");
       setSuccess("");
 
-      const response = await fetch(
-        `http://localhost:5038/api/Projects/${id}`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type":
-              "application/json",
-            Authorization:
-              `Bearer ${token}`,
-            Accept:
-              "application/json",
-          },
-          body: JSON.stringify({
-            title:
-              formData.title.trim(),
-            description:
-              formData.description.trim(),
-            category:
-              formData.category.trim(),
-            technologies:
-              formData.technologies.trim(),
-            course:
-              formData.course.trim(),
-            university:
-              formData.university.trim(),
-            price,
-            deliveryDays,
-            deliverables:
-              formData.deliverables.trim(),
-            imageUrl:
-              formData.imageUrl.trim() ||
-              null,
-            isAvailable:
-              formData.isAvailable,
-          }),
+      // ==========================================
+      // UPLOAD NEW IMAGE
+      // ==========================================
+
+      let imageUrl =
+        formData.imageUrl ||
+        null;
+
+      if (selectedImage) {
+        const uploadedImageUrl =
+          await uploadImage(token);
+
+        if (uploadedImageUrl) {
+          imageUrl =
+            uploadedImageUrl;
         }
-      );
+      }
+
+      // ==========================================
+      // UPDATE PROJECT
+      // ==========================================
+
+      const response =
+        await fetch(
+          `${API_BASE_URL}/api/Projects/${id}`,
+          {
+            method: "PUT",
+
+            headers: {
+              "Content-Type":
+                "application/json",
+
+              Authorization:
+                `Bearer ${token}`,
+
+              Accept:
+                "application/json",
+            },
+
+            body: JSON.stringify({
+              title:
+                formData.title.trim(),
+
+              description:
+                formData.description.trim(),
+
+              category:
+                formData.category.trim(),
+
+              technologies:
+                formData.technologies.trim(),
+
+              course:
+                formData.course.trim(),
+
+              university:
+                formData.university.trim(),
+
+              price,
+
+              deliveryDays,
+
+              deliverables:
+                formData.deliverables.trim(),
+
+              imageUrl,
+
+              isAvailable:
+                formData.isAvailable,
+            }),
+          }
+        );
 
       let result:
-        | { message?: string }
+        | {
+            message?: string;
+            imageUrl?: string | null;
+          }
         | null = null;
 
       try {
-        result = await response.json();
+        result =
+          await response.json();
       } catch {
         result = null;
       }
@@ -317,37 +562,59 @@ function SellerProjectEdit() {
         "Project updated successfully. It is now waiting for admin approval."
       );
 
-      setProject((currentProject) =>
-        currentProject
-          ? {
-              ...currentProject,
-              title:
-                formData.title.trim(),
-              description:
-                formData.description.trim(),
-              category:
-                formData.category.trim(),
-              technologies:
-                formData.technologies.trim(),
-              course:
-                formData.course.trim(),
-              university:
-                formData.university.trim(),
-              price,
-              deliveryDays,
-              deliverables:
-                formData.deliverables.trim(),
-              imageUrl:
-                formData.imageUrl.trim() ||
-                null,
-              isAvailable:
-                formData.isAvailable,
-              isApproved: false,
-            }
-          : currentProject
+      setProject(
+        (currentProject) =>
+          currentProject
+            ? {
+                ...currentProject,
+
+                title:
+                  formData.title.trim(),
+
+                description:
+                  formData.description.trim(),
+
+                category:
+                  formData.category.trim(),
+
+                technologies:
+                  formData.technologies.trim(),
+
+                course:
+                  formData.course.trim(),
+
+                university:
+                  formData.university.trim(),
+
+                price,
+
+                deliveryDays,
+
+                deliverables:
+                  formData.deliverables.trim(),
+
+                imageUrl,
+
+                isAvailable:
+                  formData.isAvailable,
+
+                isApproved:
+                  false,
+              }
+            : currentProject
       );
 
-      window.setTimeout(() => {
+      setFormData(
+        (currentData) => ({
+          ...currentData,
+          imageUrl:
+            imageUrl || "",
+        })
+      );
+
+      setSelectedImage(null);
+
+      setTimeout(() => {
         navigate("/dashboard");
       }, 1200);
     } catch (error) {
@@ -363,13 +630,16 @@ function SellerProjectEdit() {
       );
     } finally {
       setIsSaving(false);
+      setUploadProgress(false);
     }
   };
 
   if (isLoading) {
     return (
       <main className="seller-edit-page">
+
         <div className="seller-edit-loading">
+
           <div className="seller-edit-logo">
             Project
             <span>Hub</span>
@@ -378,7 +648,9 @@ function SellerProjectEdit() {
           <p>
             Loading project...
           </p>
+
         </div>
+
       </main>
     );
   }
@@ -386,6 +658,7 @@ function SellerProjectEdit() {
   if (!project) {
     return (
       <main className="seller-edit-page">
+
         <div className="seller-edit-error-page">
 
           <div className="seller-edit-error-icon">
@@ -409,6 +682,7 @@ function SellerProjectEdit() {
           </Link>
 
         </div>
+
       </main>
     );
   }
@@ -422,13 +696,16 @@ function SellerProjectEdit() {
           to="/dashboard"
           className="seller-edit-brand"
         >
+
           <span className="seller-edit-logo-small">
             P
           </span>
 
           <span>
-            Project<span>Hub</span>
+            Project
+            <span>Hub</span>
           </span>
+
         </Link>
 
         <Link
@@ -481,19 +758,29 @@ function SellerProjectEdit() {
 
         {error && (
           <div className="seller-edit-alert error">
-            <span>!</span>
+
+            <span>
+              !
+            </span>
+
             <p>
               {error}
             </p>
+
           </div>
         )}
 
         {success && (
           <div className="seller-edit-alert success">
-            <span>✓</span>
+
+            <span>
+              ✓
+            </span>
+
             <p>
               {success}
             </p>
+
           </div>
         )}
 
@@ -501,6 +788,10 @@ function SellerProjectEdit() {
           className="seller-edit-form"
           onSubmit={handleSubmit}
         >
+
+          {/* ==========================================
+              01 BASIC INFORMATION
+          ========================================== */}
 
           <section className="seller-edit-card">
 
@@ -511,6 +802,7 @@ function SellerProjectEdit() {
               </div>
 
               <div>
+
                 <h2>
                   Basic Information
                 </h2>
@@ -519,6 +811,7 @@ function SellerProjectEdit() {
                   Tell buyers what your project
                   is about.
                 </p>
+
               </div>
 
             </div>
@@ -535,7 +828,9 @@ function SellerProjectEdit() {
                 <input
                   id="title"
                   type="text"
-                  value={formData.title}
+                  value={
+                    formData.title
+                  }
                   onChange={(event) =>
                     handleChange(
                       "title",
@@ -670,6 +965,10 @@ function SellerProjectEdit() {
 
           </section>
 
+          {/* ==========================================
+              02 ACADEMIC INFORMATION
+          ========================================== */}
+
           <section className="seller-edit-card">
 
             <div className="seller-edit-card-header">
@@ -679,6 +978,7 @@ function SellerProjectEdit() {
               </div>
 
               <div>
+
                 <h2>
                   Academic Information
                 </h2>
@@ -687,6 +987,7 @@ function SellerProjectEdit() {
                   Help buyers understand the
                   academic context of your project.
                 </p>
+
               </div>
 
             </div>
@@ -747,6 +1048,10 @@ function SellerProjectEdit() {
 
           </section>
 
+          {/* ==========================================
+              03 PRICING
+          ========================================== */}
+
           <section className="seller-edit-card">
 
             <div className="seller-edit-card-header">
@@ -756,6 +1061,7 @@ function SellerProjectEdit() {
               </div>
 
               <div>
+
                 <h2>
                   Pricing & Delivery
                 </h2>
@@ -764,6 +1070,7 @@ function SellerProjectEdit() {
                   Set your project price and
                   expected delivery time.
                 </p>
+
               </div>
 
             </div>
@@ -844,6 +1151,10 @@ function SellerProjectEdit() {
 
           </section>
 
+          {/* ==========================================
+              04 DELIVERABLES
+          ========================================== */}
+
           <section className="seller-edit-card">
 
             <div className="seller-edit-card-header">
@@ -853,6 +1164,7 @@ function SellerProjectEdit() {
               </div>
 
               <div>
+
                 <h2>
                   Deliverables
                 </h2>
@@ -861,6 +1173,7 @@ function SellerProjectEdit() {
                   List everything included with
                   the project.
                 </p>
+
               </div>
 
             </div>
@@ -900,6 +1213,10 @@ function SellerProjectEdit() {
 
           </section>
 
+          {/* ==========================================
+              05 LISTING SETTINGS
+          ========================================== */}
+
           <section className="seller-edit-card">
 
             <div className="seller-edit-card-header">
@@ -909,6 +1226,7 @@ function SellerProjectEdit() {
               </div>
 
               <div>
+
                 <h2>
                   Listing Settings
                 </h2>
@@ -917,11 +1235,97 @@ function SellerProjectEdit() {
                   Control how your project appears
                   in the marketplace.
                 </p>
+
               </div>
 
             </div>
 
             <div className="seller-edit-settings">
+
+              {/* IMAGE */}
+
+              <div className="seller-edit-setting seller-edit-image-setting">
+
+                <div className="seller-edit-image-content">
+
+                  <strong>
+                    Project Image
+                  </strong>
+
+                  <p>
+                    Upload an image from your
+                    Mac or PC.
+                  </p>
+
+                  <div className="seller-edit-image-upload">
+
+                    {imagePreview ? (
+                      <div className="seller-edit-image-preview">
+
+                        <img
+                          src={imagePreview}
+                          alt="Project preview"
+                        />
+
+                        <button
+                          type="button"
+                          onClick={
+                            removeSelectedImage
+                          }
+                          className="seller-edit-image-remove"
+                        >
+                          Choose Different Image
+                        </button>
+
+                      </div>
+                    ) : (
+                      <label
+                        htmlFor="projectImage"
+                        className="seller-edit-image-label"
+                      >
+
+                        <span className="seller-edit-image-icon">
+                          ↑
+                        </span>
+
+                        <strong>
+                          Choose Image
+                        </strong>
+
+                        <small>
+                          JPG, PNG or WebP · Max 5 MB
+                        </small>
+
+                      </label>
+                    )}
+
+                    <input
+                      id="projectImage"
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      onChange={
+                        handleImageChange
+                      }
+                      className="seller-edit-file-input"
+                    />
+
+                  </div>
+
+                  {selectedImage && (
+                    <small>
+                      Selected:
+                      {" "}
+                      <strong>
+                        {selectedImage.name}
+                      </strong>
+                    </small>
+                  )}
+
+                </div>
+
+              </div>
+
+              {/* AVAILABILITY */}
 
               <div className="seller-edit-setting">
 
@@ -967,7 +1371,11 @@ function SellerProjectEdit() {
 
                 <p>
                   Updating your project will send it
-                  back to <strong>Pending Approval</strong>.
+                  back to
+                  {" "}
+                  <strong>
+                    Pending Approval
+                  </strong>.
                   An admin will review the changes before
                   the updated listing appears in the
                   marketplace.
@@ -978,6 +1386,10 @@ function SellerProjectEdit() {
             </div>
 
           </section>
+
+          {/* ==========================================
+              ACTIONS
+          ========================================== */}
 
           <div className="seller-edit-actions">
 
@@ -993,9 +1405,11 @@ function SellerProjectEdit() {
               className="seller-edit-save"
               disabled={isSaving}
             >
-              {isSaving
-                ? "Saving Changes..."
-                : "Save Changes →"}
+              {uploadProgress
+                ? "Uploading Image..."
+                : isSaving
+                  ? "Saving Changes..."
+                  : "Save Changes →"}
             </button>
 
           </div>

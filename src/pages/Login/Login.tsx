@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import "./Login.css";
@@ -58,9 +59,6 @@ function Login() {
 
       /*
         Store JWT token.
-
-        Later we will create a proper
-        authentication context around this.
       */
 
       if (rememberMe) {
@@ -68,10 +66,18 @@ function Login() {
           "projecthub_token",
           result.token
         );
+
+        sessionStorage.removeItem(
+          "projecthub_token"
+        );
       } else {
         sessionStorage.setItem(
           "projecthub_token",
           result.token
+        );
+
+        localStorage.removeItem(
+          "projecthub_token"
         );
       }
 
@@ -81,8 +87,11 @@ function Login() {
         Redirect based on user role.
 
         Admin  -> Admin Dashboard
-        Buyer  -> Normal Dashboard
-        Seller -> Normal Dashboard
+        Buyer  -> Marketplace
+        Seller -> Marketplace
+
+        Normal users should see the available
+        projects immediately after logging in.
       */
 
       if (
@@ -91,7 +100,7 @@ function Login() {
       ) {
         navigate("/admin");
       } else {
-        navigate("/dashboard");
+        navigate("/projects");
       }
 
     } catch (error) {
@@ -374,3 +383,4 @@ function Login() {
 }
 
 export default Login;
+

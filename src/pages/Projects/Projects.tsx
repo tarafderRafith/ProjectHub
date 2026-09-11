@@ -36,6 +36,7 @@ interface Project {
   sellerName: string;
   sellerInitial: string;
   sellerLevel: string;
+  imageUrl: string | null;
 }
 
 const categories = [
@@ -50,7 +51,8 @@ const categories = [
 function Projects() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [search, setSearch] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("All");
+  const [selectedCategory, setSelectedCategory] =
+    useState("All");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -64,7 +66,9 @@ function Projects() {
           "http://localhost:5038/api/Projects"
         );
 
-        const result: ApiProject[] | { message?: string } =
+        const result:
+          | ApiProject[]
+          | { message?: string } =
           await response.json();
 
         if (!response.ok) {
@@ -79,13 +83,20 @@ function Projects() {
 
         const formattedProjects: Project[] =
           apiProjects.map((project) => {
-            const technologies = project.technologies
-              .split(",")
-              .map((technology) => technology.trim())
-              .filter((technology) => technology.length > 0);
+            const technologies =
+              (project.technologies || "")
+                .split(",")
+                .map((technology) =>
+                  technology.trim()
+                )
+                .filter(
+                  (technology) =>
+                    technology.length > 0
+                );
 
             const sellerName =
-              project.sellerName || "ProjectHub Seller";
+              project.sellerName ||
+              "ProjectHub Seller";
 
             return {
               id: project.id,
@@ -101,6 +112,10 @@ function Projects() {
                 .charAt(0)
                 .toUpperCase(),
               sellerLevel: "Verified Seller",
+
+              // IMPORTANT:
+              // Keep the image URL coming from the API.
+              imageUrl: project.imageUrl || null,
             };
           });
 
@@ -125,7 +140,8 @@ function Projects() {
         selectedCategory === "All" ||
         project.category === selectedCategory;
 
-      const searchText = search.toLowerCase().trim();
+      const searchText =
+        search.toLowerCase().trim();
 
       const matchesSearch =
         searchText === "" ||
@@ -138,15 +154,22 @@ function Projects() {
         project.category
           .toLowerCase()
           .includes(searchText) ||
-        project.technologies.some((technology) =>
-          technology
-            .toLowerCase()
-            .includes(searchText)
+        project.technologies.some(
+          (technology) =>
+            technology
+              .toLowerCase()
+              .includes(searchText)
         );
 
-      return matchesCategory && matchesSearch;
+      return (
+        matchesCategory && matchesSearch
+      );
     });
-  }, [projects, search, selectedCategory]);
+  }, [
+    projects,
+    search,
+    selectedCategory,
+  ]);
 
   return (
     <>
@@ -162,17 +185,21 @@ function Projects() {
             <h1>
               Find the right project
               <br />
-              <span>for your next semester.</span>
+              <span>
+                for your next semester.
+              </span>
             </h1>
 
             <p>
-              Explore student projects, academic resources and
-              ready-to-customize solutions from talented
-              developers.
+              Explore student projects, academic
+              resources and ready-to-customize
+              solutions from talented developers.
             </p>
 
             <div className="projects-search">
-              <span className="search-icon">⌕</span>
+              <span className="search-icon">
+                ⌕
+              </span>
 
               <input
                 type="text"
@@ -186,7 +213,9 @@ function Projects() {
               {search && (
                 <button
                   className="clear-search"
-                  onClick={() => setSearch("")}
+                  onClick={() =>
+                    setSearch("")
+                  }
                   aria-label="Clear search"
                 >
                   ×
@@ -200,13 +229,16 @@ function Projects() {
           <div className="projects-container">
             <div className="projects-toolbar">
               <div>
-                <h2>Browse Projects</h2>
+                <h2>
+                  Browse Projects
+                </h2>
 
                 <p>
                   {loading
                     ? "Loading projects..."
                     : `${filteredProjects.length} ${
-                        filteredProjects.length === 1
+                        filteredProjects.length ===
+                        1
                           ? "project"
                           : "projects"
                       } available`}
@@ -215,39 +247,52 @@ function Projects() {
             </div>
 
             <div className="category-filter">
-              {categories.map((category) => (
-                <button
-                  key={category}
-                  className={
-                    selectedCategory === category
-                      ? "category-button active"
-                      : "category-button"
-                  }
-                  onClick={() =>
-                    setSelectedCategory(category)
-                  }
-                >
-                  {category}
-                </button>
-              ))}
+              {categories.map(
+                (category) => (
+                  <button
+                    key={category}
+                    className={
+                      selectedCategory ===
+                      category
+                        ? "category-button active"
+                        : "category-button"
+                    }
+                    onClick={() =>
+                      setSelectedCategory(
+                        category
+                      )
+                    }
+                  >
+                    {category}
+                  </button>
+                )
+              )}
             </div>
 
             {loading ? (
               <div className="projects-empty">
-                <div className="empty-icon">◌</div>
+                <div className="empty-icon">
+                  ◌
+                </div>
 
-                <h3>Loading projects...</h3>
+                <h3>
+                  Loading projects...
+                </h3>
 
                 <p>
-                  Please wait while we load the latest
-                  approved projects.
+                  Please wait while we load
+                  the latest approved projects.
                 </p>
               </div>
             ) : error ? (
               <div className="projects-empty">
-                <div className="empty-icon">!</div>
+                <div className="empty-icon">
+                  !
+                </div>
 
-                <h3>Unable to load projects</h3>
+                <h3>
+                  Unable to load projects
+                </h3>
 
                 <p>{error}</p>
 
@@ -259,40 +304,65 @@ function Projects() {
                   Try Again
                 </button>
               </div>
-            ) : filteredProjects.length > 0 ? (
+            ) : filteredProjects.length >
+              0 ? (
               <div className="projects-grid">
-                {filteredProjects.map((project) => (
-                  <ProjectCard
-                    key={project.id}
-                    id={project.id}
-                    category={project.category}
-                    title={project.title}
-                    description={project.description}
-                    technologies={project.technologies}
-                    price={project.price}
-                    rating={project.rating}
-                    reviews={project.reviews}
-                    sellerName={project.sellerName}
-                    sellerInitial={project.sellerInitial}
-                    sellerLevel={project.sellerLevel}
-                  />
-                ))}
+                {filteredProjects.map(
+                  (project) => (
+                    <ProjectCard
+                      key={project.id}
+                      id={project.id}
+                      category={
+                        project.category
+                      }
+                      title={project.title}
+                      description={
+                        project.description
+                      }
+                      technologies={
+                        project.technologies
+                      }
+                      price={project.price}
+                      rating={project.rating}
+                      reviews={project.reviews}
+                      sellerName={
+                        project.sellerName
+                      }
+                      sellerInitial={
+                        project.sellerInitial
+                      }
+                      sellerLevel={
+                        project.sellerLevel
+                      }
+                      imageUrl={
+                        project.imageUrl
+                      }
+                    />
+                  )
+                )}
               </div>
             ) : (
               <div className="projects-empty">
-                <div className="empty-icon">⌕</div>
+                <div className="empty-icon">
+                  ⌕
+                </div>
 
-                <h3>No projects found</h3>
+                <h3>
+                  No projects found
+                </h3>
 
                 <p>
-                  Try searching for another project or choose
-                  a different category.
+                  Try searching for another
+                  project or choose a
+                  different category.
                 </p>
 
                 <button
                   onClick={() => {
                     setSearch("");
-                    setSelectedCategory("All");
+                    setSelectedCategory(
+                      "All"
+                    );
                   }}
                 >
                   Clear Filters
